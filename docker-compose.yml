@@ -1,0 +1,13 @@
+services:
+  declutter:
+    image: neforce/declutter:latest
+    ports:
+      - "8765:8765"
+    volumes:
+      - /pad/naar/jouw/fotos:/photos   # ← DIT AANPASSEN naar jouw fotomap
+      - declutter_data:/data           # persistente cache (thumbnails, recents)
+      - ./.env:/app/.env:ro            # configuratiebestand
+    restart: unless-stopped
+
+volumes:
+  declutter_data:

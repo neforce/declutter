@@ -21,10 +21,12 @@ IMMICH_API_KEY = ""
 DEBUG          = False
 PRESORT_DEBUG  = False
 
-RECENTS_FILE      = Path(__file__).parent / "recents.json"
-THUMBCACHE_DIR    = Path(__file__).parent / ".thumbcache"
-DATUMCACHE_FILE   = Path(__file__).parent / ".datumcache.json"
-LOG_FILE          = Path(__file__).parent / "declutter.log"
+DATA_DIR          = Path(__file__).parent
+TRANSLATIONS_DIR  = Path(__file__).parent / "translations"
+RECENTS_FILE      = DATA_DIR / "recents.json"
+THUMBCACHE_DIR    = DATA_DIR / ".thumbcache"
+DATUMCACHE_FILE   = DATA_DIR / ".datumcache.json"
+LOG_FILE          = DATA_DIR / "declutter.log"
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -60,7 +62,14 @@ def _laad_env_bestand(pad: Path) -> dict:
 
 def _toepas_env(cfg: dict):
     global BASE_DIR, ARCHIEF_DIR, UITZOEKEN_DIR, DUMP_DIR, PRULLENBAK_DIR, DATUMLOOS_DIR, PORT
-    global IMMICH_URL, IMMICH_API_KEY, DEBUG, PRESORT_DEBUG
+    global IMMICH_URL, IMMICH_API_KEY, DEBUG, PRESORT_DEBUG, DATA_DIR
+    global RECENTS_FILE, THUMBCACHE_DIR, DATUMCACHE_FILE, LOG_FILE
+    if "DATA_DIR"        in cfg:
+        DATA_DIR        = Path(cfg["DATA_DIR"])
+        RECENTS_FILE    = DATA_DIR / "recents.json"
+        THUMBCACHE_DIR  = DATA_DIR / ".thumbcache"
+        DATUMCACHE_FILE = DATA_DIR / ".datumcache.json"
+        LOG_FILE        = DATA_DIR / "declutter.log"
     if "BASE_DIR"        in cfg: BASE_DIR        = Path(cfg["BASE_DIR"])
     if "ARCHIEF_DIR"     in cfg: ARCHIEF_DIR     = cfg["ARCHIEF_DIR"]
     if "UITZOEKEN_DIR"   in cfg: UITZOEKEN_DIR   = cfg["UITZOEKEN_DIR"]
@@ -193,6 +202,79 @@ def presort(debug=False, progress_cb=None):
         print(f"  Naamconflicten hernoemd : {overgeslagen}")
         print(f"  Tijd                    : {duur:.1f}s")
     _log(f"[Presort] {verplaatst} verplaatst, {overgeslagen} hernoemd ({duur:.1f}s)")
+
+# ── Systeemchecks ─────────────────────────────────────────────────────────────
+
+def run_health_checks():
+    """Voert systeemchecks uit. Geeft lijst van dicts terug met label_key, detail_key, status, value."""
+    import urllib.request as _ur
+    checks = []
+
+    def _dir_check(id_, label_key, path, need_write=False, optional=False):
+        p = Path(path) if not isinstance(path, Path) else path
+        if not p.exists():
+            return {"id": id_, "label_key": label_key, "value": str(p),
+                    "status": "warn" if optional else "error",
+                    "detail_key": "health_det_not_found"}
+        if not os.access(p, os.R_OK):
+            return {"id": id_, "label_key": label_key, "value": str(p),
+                    "status": "warn" if optional else "error",
+                    "detail_key": "health_det_no_read"}
+        if need_write and not os.access(p, os.W_OK):
+            return {"id": id_, "label_key": label_key, "value": str(p),
+                    "status": "warn" if optional else "error",
+                    "detail_key": "health_det_no_write"}
+        return {"id": id_, "label_key": label_key, "value": str(p),
+                "status": "ok", "detail_key": "health_det_ok"}
+
+    checks.append(_dir_check("base_dir",    "health_check_base_dir",  BASE_DIR))
+    checks.append(_dir_check("dump",        "health_check_dump",      BASE_DIR / DUMP_DIR,      optional=True))
+    checks.append(_dir_check("uitzoeken",   "health_check_uitzoeken", BASE_DIR / UITZOEKEN_DIR, need_write=True))
+    checks.append(_dir_check("archief",     "health_check_archief",   BASE_DIR / ARCHIEF_DIR,   need_write=True))
+    checks.append(_dir_check("prullenbak",  "health_check_prullenbak",BASE_DIR / PRULLENBAK_DIR,need_write=True))
+    checks.append(_dir_check("data_dir",    "health_check_data_dir",  DATA_DIR,                 need_write=True))
+
+    try:
+        import PIL
+        checks.append({"id": "pillow", "label_key": "health_check_pillow",
+                        "value": f"v{PIL.__version__}", "status": "ok", "detail_key": "health_det_ok"})
+    except ImportError:
+        checks.append({"id": "pillow", "label_key": "health_check_pillow",
+                        "value": "", "status": "error", "detail_key": "health_det_not_installed"})
+
+    try:
+        import pillow_heif  # noqa: F401
+        checks.append({"id": "heic", "label_key": "health_check_heic",
+                        "value": "", "status": "ok", "detail_key": "health_det_ok"})
+    except ImportError:
+        checks.append({"id": "heic", "label_key": "health_check_heic",
+                        "value": "", "status": "warn", "detail_key": "health_det_optional"})
+
+    try:
+        import rawpy  # noqa: F401
+        checks.append({"id": "raw", "label_key": "health_check_raw",
+                        "value": "", "status": "ok", "detail_key": "health_det_ok"})
+    except ImportError:
+        checks.append({"id": "raw", "label_key": "health_check_raw",
+                        "value": "", "status": "warn", "detail_key": "health_det_optional"})
+
+    if IMMICH_URL:
+        try:
+            headers = {}
+            if IMMICH_API_KEY:
+                headers["x-api-key"] = IMMICH_API_KEY
+            req = _ur.Request(f"{IMMICH_URL}/api/server-info", headers=headers)
+            _ur.urlopen(req, timeout=3)
+            checks.append({"id": "immich", "label_key": "health_check_immich",
+                            "value": IMMICH_URL, "status": "ok", "detail_key": "health_det_reachable"})
+        except Exception:
+            checks.append({"id": "immich", "label_key": "health_check_immich",
+                            "value": IMMICH_URL, "status": "warn", "detail_key": "health_det_unreachable"})
+    else:
+        checks.append({"id": "immich", "label_key": "health_check_immich",
+                        "value": "", "status": "info", "detail_key": "health_det_not_configured"})
+
+    return checks
 
 # ── Bestandstypen ─────────────────────────────────────────────────────────────
 
@@ -946,6 +1028,21 @@ def start_server():
   .ts-hdr-acties{{margin-left:auto;display:flex;gap:2px}}
   .ts-hdr-btn{{background:none;border:none;color:#555;cursor:pointer;font-size:.72rem;padding:1px 4px;border-radius:3px;line-height:1}}
   .ts-hdr-btn:hover{{color:#8f8;background:#1e2e1e}}
+  /* ── Taalknopjes ── */
+  .lang-sel{{display:flex;gap:2px;align-items:center;margin-right:.4rem}}
+  .lang-btn{{background:none;border:1px solid transparent;cursor:pointer;font-size:1.05rem;padding:2px 5px;border-radius:4px;opacity:.45;transition:opacity .15s,border-color .15s;line-height:1}}
+  .lang-btn:hover{{opacity:.85}}
+  .lang-btn.active{{opacity:1;border-color:#444}}
+  /* ── Systeemstatus knop ── */
+  #health-btn{{background:#0f1f0f;border:1px solid #1e3a1e;color:#6b8;width:26px;height:26px;border-radius:4px;font-size:.8rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:.3rem;flex-shrink:0}}
+  #health-btn:hover{{background:#1a2f1a;color:#8f8}}
+  /* ── Health check modal ── */
+  .health-rij{{display:flex;align-items:flex-start;gap:.5rem;padding:.32rem .45rem;border-radius:4px;background:#161616;margin-bottom:2px}}
+  .health-icon{{font-size:.88rem;flex-shrink:0;width:1.3rem;padding-top:.05rem}}
+  .health-lbl{{flex:1;font-size:.78rem;color:#ccc;line-height:1.35}}
+  .health-val{{font-size:.63rem;color:#444;display:block;margin-top:1px}}
+  .health-det{{font-size:.72rem;flex-shrink:0;padding-top:.05rem}}
+  .det-ok{{color:#6b8}}.det-warn{{color:#f80}}.det-err{{color:#f66}}.det-info{{color:#555}}
   /* ── Info-help knop ── */
   #info-help-btn{{position:fixed;right:1rem;bottom:1rem;width:32px;height:32px;border-radius:50%;background:#2a2a2a;color:#888;border:1px solid #444;font-size:1rem;font-weight:bold;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;line-height:1}}
   #info-help-btn:hover{{background:#383838;color:#ccc}}
@@ -963,6 +1060,12 @@ def start_server():
 <body>
 <div class="toolbar">
   <h1>Declutter</h1>
+  <div style="flex:1"></div>
+  <div class="lang-sel">
+    <button class="lang-btn" data-lang="nl" onclick="setLang('nl')" title="Nederlands">🇳🇱</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')" title="English">🇬🇧</button>
+  </div>
+  <button id="health-btn" onclick="toonHealth()" data-i18n-title="health_btn_title" title="Systeemstatus">⚡</button>
 </div>
 <div id="progress-wrap"><div id="progress"></div></div>
 <div id="main-wrap">
@@ -970,25 +1073,25 @@ def start_server():
   <!-- Linkerpaneel: treeview -->
   <div id="left-panel">
     <div class="ts-hdr open" id="tsh-behandeling" onclick="toggleTS('behandeling')">
-      <span class="ts-pijl">&#9658;</span> In behandeling
+      <span class="ts-pijl">&#9658;</span> <span data-i18n="section_behandeling">In behandeling</span>
     </div>
-    <div class="ts-body open" id="tsb-behandeling"><div id="tree-behandeling" style="padding:.2rem 0"><span style="color:#444;font-size:.7rem;padding:4px 10px">Laden…</span></div></div>
+    <div class="ts-body open" id="tsb-behandeling"><div id="tree-behandeling" style="padding:.2rem 0"><span style="color:#444;font-size:.7rem;padding:4px 10px" data-i18n="status_laden">Laden…</span></div></div>
     <div class="ts-hdr open" id="tsh-verwerkt" onclick="toggleTS('verwerkt')"
          ondragover="_sectionDragOver(event,this)" ondragleave="_boomDragLeave(this)"
          ondrop="_sectionDrop(event,'verwerkt')">
-      <span class="ts-pijl">&#9658;</span> Verwerkt (met datum)
+      <span class="ts-pijl">&#9658;</span> <span data-i18n="section_verwerkt">Verwerkt (met datum)</span>
       <span class="ts-hdr-acties"><button class="ts-hdr-btn" title="Nieuwe map in Verwerkt" onclick="event.stopPropagation();toonNieuweMapModal('verwerkt')">+</button></span>
     </div>
     <div class="ts-body open" id="tsb-verwerkt"><div id="tree-verwerkt"></div></div>
     <div class="ts-hdr open" id="tsh-datumloos" onclick="toggleTS('datumloos')"
          ondragover="_sectionDragOver(event,this)" ondragleave="_boomDragLeave(this)"
          ondrop="_sectionDrop(event,'datumloos')">
-      <span class="ts-pijl">&#9658;</span> Verwerkt (zonder datum)
+      <span class="ts-pijl">&#9658;</span> <span data-i18n="section_datumloos">Verwerkt (zonder datum)</span>
       <span class="ts-hdr-acties"><button class="ts-hdr-btn" title="Nieuwe map in Zonder datum" onclick="event.stopPropagation();toonNieuweMapModal('datumloos')">+</button></span>
     </div>
     <div class="ts-body open" id="tsb-datumloos"><div id="tree-datumloos"></div></div>
     <div class="ts-hdr" id="tsh-prullenbak" onclick="toggleTS('prullenbak')">
-      <span class="ts-pijl">&#9658;</span> &#128465; Prullenbak
+      <span class="ts-pijl">&#9658;</span> <span data-i18n="section_prullenbak">🗑 Prullenbak</span>
     </div>
     <div class="ts-body" id="tsb-prullenbak"><div id="tree-prullenbak"></div></div>
   </div>
@@ -1001,24 +1104,24 @@ def start_server():
              oninput="sliderVerander(this.value)">
       <span id="breedte-label">220px</span>
       <div style="flex:1"></div>
-      <button type="button" class="btn-later" onclick="bewaarLater()" title="Zet selectie in 'Later uitzoeken'">⏳ Later</button>
-      <button type="button" id="btn-verwijder" class="btn-verwijder" onclick="verwijderSelectie()" title="Verplaats selectie naar prullenbak" disabled>&#128465; Verwijder</button>
-      <button type="button" class="btn-alles" onclick="allesToggle()" title="Alles (de)selecteren">&#9745; Alles</button>
-      <button type="button" class="btn-presort" onclick="presortRun()" title="Foto's uit ruwe_data indelen op datum">&#9881; Presort</button>
-      <button type="button" class="btn-opruim" onclick="opruimLege()" title="Verwijder lege mappen uit 'In behandeling'">&#129529; Opruimen</button>
-      <button type="button" class="btn-cache" onclick="clearThumbs()" title="Thumbnail-cache leegmaken">&#128465; Cache</button>
-      <button type="button" class="btn-reset" onclick="resetTest()" title="Testdata opnieuw aanmaken">&#8635; Reset</button>
+      <button type="button" class="btn-later" onclick="bewaarLater()" data-i18n-title="btn_later_title" title="Zet selectie in 'Later uitzoeken'">⏳ <span data-i18n="btn_later">Later</span></button>
+      <button type="button" id="btn-verwijder" class="btn-verwijder" onclick="verwijderSelectie()" data-i18n-title="btn_verwijder_title" title="Verplaats selectie naar prullenbak" disabled>🗑 <span data-i18n="btn_verwijder">Verwijder</span></button>
+      <button type="button" class="btn-alles" onclick="allesToggle()" data-i18n-title="btn_alles_title" title="Alles (de)selecteren">☑ <span data-i18n="btn_alles">Alles</span></button>
+      <button type="button" class="btn-presort" onclick="presortRun()" data-i18n-title="btn_presort_title" title="Foto's uit ruwe_data indelen op datum">⚙ <span data-i18n="btn_presort">Presort</span></button>
+      <button type="button" class="btn-opruim" onclick="opruimLege()" data-i18n-title="btn_opruim_title" title="Verwijder lege mappen uit 'In behandeling'">🧹 <span data-i18n="btn_opruim">Opruimen</span></button>
+      <button type="button" class="btn-cache" onclick="clearThumbs()" data-i18n-title="btn_cache_title" title="Thumbnail-cache leegmaken">🗑 <span data-i18n="btn_cache">Cache</span></button>
+      <button type="button" class="btn-reset" onclick="resetTest()" data-i18n-title="btn_reset_title" title="Testdata opnieuw aanmaken">↺ <span data-i18n="btn_reset">Reset</span></button>
     </div>
-    <div id="fotos"><p style="color:#555;padding:1rem">Kies een map in de boom links.</p></div>
-    <div id="status">Kies een map in de boom links.</div>
+    <div id="fotos"><p style="color:#555;padding:1rem" data-i18n="status_init">Kies een map in de boom links.</p></div>
+    <div id="status" data-i18n="status_init">Kies een map in de boom links.</div>
   </div>
   <!-- Rechterpaneel: geselecteerd -->
-  <div id="sidebar"><h3>Geselecteerd</h3><p class="sb-leeg">Nog niets geselecteerd.</p></div>
+  <div id="sidebar"><h3 data-i18n="sidebar_title">Geselecteerd</h3><p class="sb-leeg" data-i18n="sidebar_leeg">Nog niets geselecteerd.</p></div>
 </div><!-- /cols-wrap -->
 <!-- Activiteitslog: full-width onder de 3 kolommen -->
 <div id="activiteit-wrap">
   <div id="activiteit-hdr" onclick="toggleActiviteit()">
-    <span id="activiteit-pijl">&#9658;</span> Activiteitslog
+    <span id="activiteit-pijl">&#9658;</span> <span data-i18n="section_activiteit">Activiteitslog</span>
     <span id="activiteit-count" style="color:#555;margin-left:.5rem;font-weight:normal"></span>
   </div>
   <div id="activiteit-body" style="display:none">
@@ -1059,6 +1162,21 @@ def start_server():
     <div style="display:flex;gap:.6rem;justify-content:flex-end">
       <button type="button" onclick="sluitHernoemModal()" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer">Annuleren</button>
       <button type="button" id="hernoem-ok" onclick="bevestigHernoem()" style="background:#2a5a8a;color:#eee;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer;font-weight:bold" disabled>Hernoemen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Systeemstatus modal -->
+<div id="health-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:400;align-items:center;justify-content:center;overflow:auto">
+  <div style="background:#1a1a1a;border:1px solid #3a3a3a;border-radius:10px;padding:1.5rem 1.8rem;max-width:540px;width:90%;color:#ccc;position:relative;margin:auto;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+    <button onclick="document.getElementById('health-modal').style.display='none'" style="position:absolute;top:.6rem;right:.8rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;transition:color .1s" onmouseover="this.style.color='#ccc'" onmouseout="this.style.color='#555'">×</button>
+    <h2 style="margin:0 0 1rem;color:#eee;font-size:.95rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase" data-i18n="health_title">Systeemstatus</h2>
+    <div id="health-lijst" style="margin-bottom:1.1rem;display:flex;flex-direction:column;gap:2px;min-height:60px">
+      <div class="health-rij"><span class="health-icon" style="color:#555">⏳</span><span class="health-lbl" style="color:#444">Laden…</span></div>
+    </div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid #2a2a2a;padding-top:.85rem;margin-top:.2rem">
+      <button id="health-refresh-btn" onclick="refreshHealth()" style="background:#0f1f0f;color:#6b8;border:1px solid #1e3a1e;padding:.38rem .85rem;border-radius:4px;cursor:pointer;font-size:.8rem;transition:background .1s" data-i18n="health_refresh">↻ Vernieuwen</button>
+      <button id="health-restart-btn" onclick="restartServer()" style="background:#1f1400;color:#f80;border:1px solid #3a2800;padding:.38rem .85rem;border-radius:4px;cursor:pointer;font-size:.8rem;transition:background .1s" data-i18n="health_restart">↺ Herstart server</button>
     </div>
   </div>
 </div>
@@ -2044,15 +2162,15 @@ async function resetTestBevestigd() {{
 
 async function presortRun() {{
   document.getElementById('progress').style.width = '0%';
-  document.getElementById('status').textContent = 'Presort starten…';
+  document.getElementById('status').textContent = t('status_presort_start');
   await fetch('/presort', {{method: 'POST'}});
 }}
 
 async function clearThumbs() {{
-  document.getElementById('status').textContent = 'Cache wissen…';
+  document.getElementById('status').textContent = t('status_cache_wissen');
   const r = await fetch('/clearthumbs', {{method: 'POST'}});
   const d = await r.json();
-  document.getElementById('status').textContent = d.ok ? 'Cache gewist.' : 'Fout bij wissen.';
+  document.getElementById('status').textContent = d.ok ? t('status_cache_gewist') : t('status_cache_fout');
 }}
 
 async function opruimLege() {{
@@ -2297,12 +2415,12 @@ laadTree(true).then(() => {{
           document.getElementById('reset-bericht').style.color = '#f66';
         }} else if (d.type === 'presort_klaar') {{
           document.getElementById('progress').style.width = '0%';
-          document.getElementById('status').textContent = 'Presort klaar.';
+          document.getElementById('status').textContent = t('status_presort_klaar');
           if (d.jm) verversNav(d.jm);
           _verversTree();
         }} else if (d.type === 'presort_fout') {{
           document.getElementById('progress').style.width = '0%';
-          document.getElementById('status').textContent = 'Presort fout: ' + (d.bericht || '?');
+          document.getElementById('status').textContent = t('status_presort_fout') + (d.bericht || '?');
         }}
       }} catch(_) {{}}
     }});
@@ -2310,6 +2428,112 @@ laadTree(true).then(() => {{
   }}
   verbind();
 }})();
+
+// ── Vertaalsysteem ────────────────────────────────────────────────────────────
+const _tlCache = {{}};
+let _lang = localStorage.getItem('lang') || 'nl';
+
+function t(key) {{
+  return (_tlCache[_lang] && _tlCache[_lang][key] !== undefined)
+    ? _tlCache[_lang][key] : key;
+}}
+
+async function _loadLang(code) {{
+  if (_tlCache[code]) return;
+  try {{
+    const r = await fetch('/lang/' + code + '.json');
+    if (r.ok) _tlCache[code] = await r.json();
+  }} catch(_) {{}}
+}}
+
+function applyTranslations() {{
+  const tr = _tlCache[_lang] || {{}};
+  document.querySelectorAll('[data-i18n]').forEach(el => {{
+    const v = tr[el.dataset.i18n];
+    if (v !== undefined) el.textContent = v;
+  }});
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {{
+    const v = tr[el.dataset.i18nTitle];
+    if (v !== undefined) el.title = v;
+  }});
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {{
+    const v = tr[el.dataset.i18nPlaceholder];
+    if (v !== undefined) el.placeholder = v;
+  }});
+  document.querySelectorAll('.lang-btn').forEach(btn => {{
+    btn.classList.toggle('active', btn.dataset.lang === _lang);
+  }});
+}}
+
+async function setLang(code) {{
+  _lang = code;
+  localStorage.setItem('lang', code);
+  await _loadLang(code);
+  applyTranslations();
+}}
+
+(async function() {{
+  await _loadLang(_lang);
+  applyTranslations();
+}})();
+
+// ── Systeemstatus (health check) ──────────────────────────────────────────────
+async function toonHealth() {{
+  const modal = document.getElementById('health-modal');
+  modal.style.display = 'flex';
+  await refreshHealth();
+}}
+
+async function refreshHealth() {{
+  const lijst = document.getElementById('health-lijst');
+  lijst.innerHTML = '<div class="health-rij"><span class="health-icon" style="color:#555">⏳</span><span class="health-lbl" style="color:#444">…</span></div>';
+  const btn = document.getElementById('health-refresh-btn');
+  btn.disabled = true;
+  try {{
+    const r = await fetch('/healthcheck');
+    const data = await r.json();
+    renderHealthChecks(data.checks);
+  }} catch(e) {{
+    lijst.innerHTML = '<div style="color:#f66;font-size:.78rem;padding:.5rem">Fout bij ophalen status.</div>';
+  }} finally {{
+    btn.disabled = false;
+  }}
+}}
+
+function renderHealthChecks(checks) {{
+  const icons = {{ok:'✅', warn:'⚠️', error:'❌', info:'ℹ️'}};
+  const detCls = {{ok:'det-ok', warn:'det-warn', error:'det-err', info:'det-info'}};
+  const lijst = document.getElementById('health-lijst');
+  lijst.innerHTML = checks.map(c => {{
+    const icon  = icons[c.status]  || 'ℹ️';
+    const cls   = detCls[c.status] || 'det-info';
+    const label = t(c.label_key)  || c.label_key;
+    const det   = t(c.detail_key) || c.detail_key;
+    const valHtml = c.value
+      ? `<span class="health-val">${{c.value}}</span>`
+      : '';
+    return `<div class="health-rij">
+      <span class="health-icon">${{icon}}</span>
+      <span class="health-lbl">${{label}}${{valHtml}}</span>
+      <span class="health-det ${{cls}}">${{det}}</span>
+    </div>`;
+  }}).join('');
+}}
+
+async function restartServer() {{
+  const btn = document.getElementById('health-restart-btn');
+  btn.disabled = true;
+  btn.textContent = t('health_restarting');
+  try {{
+    await fetch('/restart', {{method: 'POST'}});
+    document.getElementById('health-lijst').innerHTML =
+      '<div style="color:#8f8;font-size:.78rem;padding:.5rem">↺ Server herstart… pagina wordt opnieuw geladen.</div>';
+    setTimeout(() => location.reload(), 2800);
+  }} catch(_) {{
+    btn.disabled = false;
+    btn.textContent = t('health_restart');
+  }}
+}}
 </script>
 </body>
 </html>"""
@@ -2491,6 +2715,26 @@ laadTree(true).then(() => {{
                     "prullenbak_boom": _boom(prullenbak_pad) if prullenbak_pad.exists() else [],
                     "jm": jaren_maanden(),
                 })
+                return
+
+            if parsed.path.startswith("/lang/"):
+                code = parsed.path[6:].replace(".json", "").strip("/")
+                if not code.isalpha() or len(code) > 5:
+                    self.send_response(400); self.end_headers(); return
+                lang_file = TRANSLATIONS_DIR / f"{code}.json"
+                if not lang_file.exists():
+                    self.send_json({"fout": "taal niet gevonden"}, 404); return
+                data = lang_file.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", len(data))
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.end_headers()
+                self.wfile.write(data)
+                return
+
+            if parsed.path == "/healthcheck":
+                self.send_json({"checks": run_health_checks()})
                 return
 
             if parsed.path == "/events":
@@ -2775,6 +3019,15 @@ laadTree(true).then(() => {{
                     self.send_json({"bericht": f"Map verplaatst naar '{naar_rel}'", "nieuw_pad": nieuw_rel})
                 except Exception as e:
                     self.send_json({"fout": str(e)}, 500)
+
+            elif path == "/restart":
+                def _doe_restart():
+                    import time as _time
+                    _time.sleep(0.4)
+                    _log("[Server] Herstart op verzoek van gebruiker")
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                threading.Thread(target=_doe_restart, daemon=False).start()
+                self.send_json({"ok": True})
 
             else:
                 self.send_json({"fout": "onbekend pad"}, 404)
