@@ -1062,6 +1062,10 @@ def start_server():
   /* ── Info-help knop ── */
   #info-help-btn{{position:fixed;right:1rem;bottom:1rem;width:32px;height:32px;border-radius:50%;background:#2a2a2a;color:#888;border:1px solid #444;font-size:1rem;font-weight:bold;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;line-height:1}}
   #info-help-btn:hover{{background:#383838;color:#ccc}}
+  /* ── Tree toggle (alleen mobiel) ── */
+  #tree-toggle-btn{{display:none}}
+  /* ── Slider wrapper (voor mobiel hide) ── */
+  #slider-in-dd{{display:none}}
   /* ── Extra tools dropdown (mobiel) ── */
   #extra-tools-wrap{{position:relative;display:flex;align-items:center}}
   #extra-tools-btn{{display:none;background:#383838;border:1px solid #555;color:#ccc;padding:.18rem .55rem;font-size:1rem;cursor:pointer;border-radius:4px;line-height:1;letter-spacing:.1em}}
@@ -1083,11 +1087,19 @@ def start_server():
     #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:fixed;bottom:0;left:0;right:0;z-index:50;box-sizing:border-box}}
     #mobiel-verplaats-bar.verborgen{{display:none!important}}
     body{{padding-bottom:56px}}
+    .toolbar{{position:static}}
+    #thumb-toolbar{{position:sticky;top:0;z-index:10}}
     #info-help-btn{{display:none}}
+    #slider-wrap{{display:none}}
+    #tree-toggle-btn{{display:flex;align-items:center;justify-content:center;background:#2a2a2a;border:1px solid #444;color:#ccc;padding:.18rem .55rem;font-size:.95rem;cursor:pointer;border-radius:4px;line-height:1}}
+    #tree-toggle-btn:hover{{background:#383838}}
     #extra-tools-btn{{display:flex;align-items:center;justify-content:center}}
-    #extra-tools-dropdown{{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#1a1a1a;border:1px solid #444;border-radius:6px;padding:.45rem;flex-direction:column;gap:.3rem;min-width:160px;z-index:100;box-shadow:0 4px 14px rgba(0,0,0,.6)}}
+    #extra-tools-dropdown{{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#1a1a1a;border:1px solid #444;border-radius:6px;padding:.45rem;flex-direction:column;gap:.3rem;min-width:180px;z-index:100;box-shadow:0 4px 14px rgba(0,0,0,.6)}}
     #extra-tools-dropdown.open{{display:flex}}
     #extra-tools-dropdown button{{text-align:left;width:100%;padding:.35rem .65rem;font-size:.78rem;border-radius:4px}}
+    #slider-in-dd{{display:flex;align-items:center;gap:.4rem;padding:.3rem .65rem;border-bottom:1px solid #2a2a2a;margin-bottom:.1rem}}
+    #slider-in-dd input[type=range]{{flex:1;accent-color:#4a8abf;cursor:pointer}}
+    #slider-in-dd span{{font-size:.72rem;color:#aaa;white-space:nowrap}}
   }}
 </style>
 </head>
@@ -1114,14 +1126,14 @@ def start_server():
          ondragover="_sectionDragOver(event,this)" ondragleave="_boomDragLeave(this)"
          ondrop="_sectionDrop(event,'verwerkt')">
       <span class="ts-pijl">&#9658;</span> <span data-i18n="section_verwerkt">Verwerkt (met datum)</span>
-      <span class="ts-hdr-acties"><button class="ts-hdr-btn" title="Nieuwe map in Verwerkt" onclick="event.stopPropagation();toonNieuweMapModal('verwerkt')">+</button></span>
+      <span class="ts-hdr-acties"><button class="ts-hdr-btn" data-i18n-title="tree_nieuwe_in_verwerkt" title="Nieuwe map in Verwerkt" onclick="event.stopPropagation();toonNieuweMapModal('verwerkt')">+</button></span>
     </div>
     <div class="ts-body open" id="tsb-verwerkt"><div id="tree-verwerkt"></div></div>
     <div class="ts-hdr open" id="tsh-datumloos" onclick="toggleTS('datumloos')"
          ondragover="_sectionDragOver(event,this)" ondragleave="_boomDragLeave(this)"
          ondrop="_sectionDrop(event,'datumloos')">
       <span class="ts-pijl">&#9658;</span> <span data-i18n="section_datumloos">Verwerkt (zonder datum)</span>
-      <span class="ts-hdr-acties"><button class="ts-hdr-btn" title="Nieuwe map in Zonder datum" onclick="event.stopPropagation();toonNieuweMapModal('datumloos')">+</button></span>
+      <span class="ts-hdr-acties"><button class="ts-hdr-btn" data-i18n-title="tree_nieuwe_in_datumloos" title="Nieuwe map in Zonder datum" onclick="event.stopPropagation();toonNieuweMapModal('datumloos')">+</button></span>
     </div>
     <div class="ts-body open" id="tsb-datumloos"><div id="tree-datumloos"></div></div>
     <div class="ts-hdr" id="tsh-prullenbak" onclick="toggleTS('prullenbak')">
@@ -1133,22 +1145,31 @@ def start_server():
   <!-- Middenpaneel: foto's -->
   <div id="fotos-wrap">
     <div id="thumb-toolbar">
-      <span>Grootte:</span>
-      <input type="range" id="breedte-slider" min="100" max="400" value="220"
-             oninput="sliderVerander(this.value)">
-      <span id="breedte-label">220px</span>
+      <button type="button" id="tree-toggle-btn" onclick="toggleTreePanel()" title="Boom tonen/verbergen">&#9776;</button>
+      <div id="slider-wrap" style="display:contents">
+        <span data-i18n="lbl_grootte">Grootte:</span>
+        <input type="range" id="breedte-slider" min="100" max="400" value="220"
+               oninput="sliderVerander(this.value)">
+        <span id="breedte-label">220px</span>
+      </div>
       <div style="flex:1"></div>
       <button type="button" class="btn-later" onclick="bewaarLater()" data-i18n-title="btn_later_title" title="Zet selectie in 'Later uitzoeken'">⏳ <span data-i18n="btn_later">Later</span></button>
       <button type="button" id="btn-verwijder" class="btn-verwijder" onclick="verwijderSelectie()" data-i18n-title="btn_verwijder_title" title="Verplaats selectie naar prullenbak" disabled>🗑 <span data-i18n="btn_verwijder">Verwijder</span></button>
       <button type="button" class="btn-alles" onclick="allesToggle()" data-i18n-title="btn_alles_title" title="Alles (de)selecteren">☑ <span data-i18n="btn_alles">Alles</span></button>
       <div id="extra-tools-wrap">
-        <button type="button" id="extra-tools-btn" onclick="toggleExtraTools()" title="Meer opties">&#8943;</button>
+        <button type="button" id="extra-tools-btn" onclick="toggleExtraTools()" data-i18n-title="btn_extra_tools_title" title="Meer opties">&#8943;</button>
         <div id="extra-tools-dropdown">
+          <div id="slider-in-dd">
+            <span data-i18n="lbl_grootte">Grootte:</span>
+            <input type="range" id="breedte-slider-dd" min="100" max="400" value="220"
+                   oninput="sliderVerander(this.value);document.getElementById('breedte-slider').value=this.value">
+            <span id="breedte-label-dd">220px</span>
+          </div>
           <button type="button" class="btn-presort" onclick="sluitExtraTools();presortRun()" data-i18n-title="btn_presort_title" title="Foto's uit ruwe_data indelen op datum">⚙ <span data-i18n="btn_presort">Presort</span></button>
           <button type="button" class="btn-opruim" onclick="sluitExtraTools();opruimLege()" data-i18n-title="btn_opruim_title" title="Verwijder lege mappen uit 'In behandeling'">🧹 <span data-i18n="btn_opruim">Opruimen</span></button>
           <button type="button" class="btn-cache" onclick="sluitExtraTools();clearThumbs()" data-i18n-title="btn_cache_title" title="Thumbnail-cache leegmaken">🗑 <span data-i18n="btn_cache">Cache</span></button>
           <button type="button" class="btn-reset" onclick="sluitExtraTools();resetTest()" data-i18n-title="btn_reset_title" title="Testdata opnieuw aanmaken">↺ <span data-i18n="btn_reset">Reset</span></button>
-          <button type="button" style="background:#2a2a2a;border:1px solid #444;color:#888" onclick="sluitExtraTools();toonInfoHelp()" title="Uitleg over de interface">? Info</button>
+          <button type="button" style="background:#2a2a2a;border:1px solid #444;color:#888" onclick="sluitExtraTools();toonInfoHelp()" data-i18n="btn_info" data-i18n-title="btn_info_title" title="Uitleg over de interface">? Info</button>
         </div>
       </div>
     </div>
@@ -1165,7 +1186,7 @@ def start_server():
     <span id="activiteit-count" style="color:#555;margin-left:.5rem;font-weight:normal"></span>
   </div>
   <div id="activiteit-body" style="display:none">
-    <div id="activiteit-lijst"><span style="color:#444;font-size:.72rem;padding:4px 10px;display:block">Nog geen activiteit in deze sessie.</span></div>
+    <div id="activiteit-lijst"><span style="color:#444;font-size:.72rem;padding:4px 10px;display:block" data-i18n="activiteit_leeg">Nog geen activiteit in deze sessie.</span></div>
   </div>
 </div>
 </div><!-- /main-wrap -->
@@ -1176,17 +1197,17 @@ def start_server():
 <!-- Mobiel: verplaats-balk (sticky onderaan, alleen zichtbaar op mobiel als er selectie is) -->
 <div id="mobiel-verplaats-bar" class="verborgen">
   <span id="mobiel-verplaats-lbl" style="font-size:.82rem;color:#9c9"></span>
-  <button onclick="toonMobielVerplaats()" style="background:#2a6a2a;color:#eee;border:none;border-radius:5px;padding:.4rem .9rem;font-size:.82rem;cursor:pointer;font-weight:bold">&#128193; Verplaats naar&hellip;</button>
+  <button onclick="toonMobielVerplaats()" style="background:#2a6a2a;color:#eee;border:none;border-radius:5px;padding:.4rem .9rem;font-size:.82rem;cursor:pointer;font-weight:bold" data-i18n="mobiel_verplaats_btn">&#128193; Verplaatsen naar&hellip;</button>
 </div>
 
 <!-- Mobiel: verplaats-picker modal (bottom sheet) -->
 <div id="mobiel-verplaats-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;align-items:flex-end;justify-content:center">
   <div style="background:#1e1e1e;border-radius:12px 12px 0 0;width:100%;max-height:72vh;display:flex;flex-direction:column;padding:1rem 1rem .5rem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
-      <h2 style="margin:0;font-size:.92rem;color:#eee" id="mv-titel">Verplaats naar&hellip;</h2>
+      <h2 style="margin:0;font-size:.92rem;color:#eee" id="mv-titel" data-i18n="mobiel_verplaats_titel">Verplaatsen naar&hellip;</h2>
       <button onclick="document.getElementById('mobiel-verplaats-modal').style.display='none'" style="background:none;border:none;color:#888;font-size:1.3rem;cursor:pointer;line-height:1;padding:0 .2rem">&#215;</button>
     </div>
-    <input type="search" id="mv-filter" placeholder="Zoeken&hellip;" oninput="filterMobielVerplaats()"
+    <input type="search" id="mv-filter" placeholder="Zoeken&hellip;" data-i18n-placeholder="mobiel_zoeken_ph" oninput="filterMobielVerplaats()"
            style="background:#222;border:1px solid #444;color:#eee;border-radius:4px;padding:.38rem .6rem;font-size:.85rem;margin-bottom:.5rem;width:100%">
     <div id="mobiel-verplaats-lijst" style="overflow-y:auto;flex:1"></div>
   </div>
@@ -1195,12 +1216,12 @@ def start_server():
 <!-- Opruimen bevestig-modal -->
 <div id="opruim-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center">
   <div style="background:#1e1e1e;border:1px solid #555;border-radius:8px;padding:1.4rem 1.8rem;max-width:420px;width:90%;color:#eee">
-    <h2 style="margin:0 0 .6rem;font-size:1rem;color:#eee">🧹 Lege mappen opruimen</h2>
-    <p style="margin:0 0 .7rem;font-size:.82rem;color:#aaa">De volgende lege mappen worden verwijderd uit <em>In behandeling</em>:</p>
+    <h2 style="margin:0 0 .6rem;font-size:1rem;color:#eee" data-i18n="opruim_modal_titel">🧹 Lege mappen opruimen</h2>
+    <p style="margin:0 0 .7rem;font-size:.82rem;color:#aaa" data-i18n="opruim_modal_uitleg">De volgende lege mappen worden verwijderd uit In behandeling:</p>
     <div id="opruim-lijst" style="max-height:200px;overflow-y:auto;background:#161616;border:1px solid #333;border-radius:4px;padding:.4rem .6rem;margin-bottom:.8rem;font-size:.8rem"></div>
     <div style="display:flex;gap:.6rem;justify-content:flex-end">
-      <button type="button" onclick="document.getElementById('opruim-modal').style.display='none'" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer">Annuleren</button>
-      <button type="button" onclick="bevestigOpruim()" style="background:#1a2a3a;color:#7af;border:1px solid #2a4a6a;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-weight:bold">Opruimen</button>
+      <button type="button" onclick="document.getElementById('opruim-modal').style.display='none'" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer" data-i18n="cancel">Annuleren</button>
+      <button type="button" onclick="bevestigOpruim()" style="background:#1a2a3a;color:#7af;border:1px solid #2a4a6a;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-weight:bold" data-i18n="opruim_bevestig">Opruimen</button>
     </div>
   </div>
 </div>
@@ -1208,7 +1229,7 @@ def start_server():
 <!-- Nieuwe map modal -->
 <div id="nieuwmap-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center">
   <div style="background:#1e1e1e;border:1px solid #555;border-radius:8px;padding:1.4rem 1.8rem;max-width:420px;width:90%;color:#eee">
-    <h2 style="margin:0 0 .8rem;font-size:1rem;color:#eee" id="nieuwmap-titel">Nieuwe map aanmaken</h2>
+    <h2 style="margin:0 0 .8rem;font-size:1rem;color:#eee" id="nieuwmap-titel" data-i18n="nieuwmap_titel">Nieuwe map aanmaken</h2>
     <p style="margin:0 0 .6rem;font-size:.82rem;color:#888" id="nieuwmap-uitleg"></p>
     <div style="position:relative;margin-bottom:.5rem">
       <input type="text" id="nieuwmap-naam" placeholder="2026-04-02 Vakantie  of  Marktplaats/Babybedje"
@@ -1217,8 +1238,8 @@ def start_server():
     </div>
     <div id="nieuwmap-hint" style="font-size:.72rem;color:#666;margin-bottom:.8rem;min-height:1.2rem"></div>
     <div style="display:flex;gap:.6rem;justify-content:flex-end">
-      <button type="button" onclick="sluitNieuweMapModal()" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer">Annuleren</button>
-      <button type="button" id="nieuwmap-ok" onclick="bevestigNieuweMap()" style="background:#2a6a2a;color:#eee;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer;font-weight:bold" disabled>Aanmaken</button>
+      <button type="button" onclick="sluitNieuweMapModal()" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer" data-i18n="cancel">Annuleren</button>
+      <button type="button" id="nieuwmap-ok" onclick="bevestigNieuweMap()" style="background:#2a6a2a;color:#eee;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer;font-weight:bold" data-i18n="nieuwmap_ok" disabled>Aanmaken</button>
     </div>
   </div>
 </div>
@@ -1226,14 +1247,14 @@ def start_server():
 <!-- Hernoem-modal -->
 <div id="hernoem-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center">
   <div style="background:#1e1e1e;border:1px solid #555;border-radius:8px;padding:1.4rem 1.8rem;max-width:420px;width:90%;color:#eee">
-    <h2 style="margin:0 0 .8rem;font-size:1rem;color:#eee">Map hernoemen</h2>
+    <h2 style="margin:0 0 .8rem;font-size:1rem;color:#eee" data-i18n="hernoem_titel">Map hernoemen</h2>
     <p style="margin:0 0 .5rem;font-size:.78rem;color:#666" id="hernoem-huidig"></p>
-    <input type="text" id="hernoem-naam" placeholder="Nieuwe naam"
+    <input type="text" id="hernoem-naam" placeholder="Nieuwe naam" data-i18n-placeholder="hernoem_ph"
            oninput="valideerHernoem()" style="width:100%;padding:.4rem .6rem;background:#222;border:1px solid #444;color:#eee;border-radius:4px;font-size:.88rem;margin-bottom:.3rem">
     <div id="hernoem-hint" style="font-size:.72rem;color:#f80;margin-bottom:.8rem;min-height:1.2rem"></div>
     <div style="display:flex;gap:.6rem;justify-content:flex-end">
-      <button type="button" onclick="sluitHernoemModal()" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer">Annuleren</button>
-      <button type="button" id="hernoem-ok" onclick="bevestigHernoem()" style="background:#2a5a8a;color:#eee;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer;font-weight:bold" disabled>Hernoemen</button>
+      <button type="button" onclick="sluitHernoemModal()" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer" data-i18n="cancel">Annuleren</button>
+      <button type="button" id="hernoem-ok" onclick="bevestigHernoem()" style="background:#2a5a8a;color:#eee;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer;font-weight:bold" data-i18n="hernoem_ok" disabled>Hernoemen</button>
     </div>
   </div>
 </div>
@@ -1321,13 +1342,13 @@ def start_server():
         <span id="reset-aantal-label" style="width:2.5rem;text-align:right;color:#f90;font-weight:bold">40</span>
       </label>
       <div style="display:flex;gap:.7rem;justify-content:flex-end">
-        <button type="button" onclick="document.getElementById('reset-modal').style.display='none'" style="background:#444;color:#eee;padding:.5rem 1.1rem;border:none;border-radius:4px;cursor:pointer;font-size:.9rem">Annuleren</button>
-        <button type="button" onclick="resetTestBevestigd()" style="background:#c33;color:#fff;padding:.5rem 1.1rem;border:none;border-radius:4px;cursor:pointer;font-size:.9rem;font-weight:bold">Ja, reset</button>
+        <button type="button" onclick="document.getElementById('reset-modal').style.display='none'" style="background:#444;color:#eee;padding:.5rem 1.1rem;border:none;border-radius:4px;cursor:pointer;font-size:.9rem" data-i18n="cancel">Annuleren</button>
+        <button type="button" onclick="resetTestBevestigd()" style="background:#c33;color:#fff;padding:.5rem 1.1rem;border:none;border-radius:4px;cursor:pointer;font-size:.9rem;font-weight:bold" data-i18n="reset_ja">Ja, reset</button>
       </div>
     </div>
     <div id="reset-voortgang" style="display:none">
-      <h2 style="margin:0 0 1rem;font-size:1rem;color:#ccc">Reset bezig…</h2>
-      <div id="reset-fase-label" style="font-size:.8rem;color:#888;margin-bottom:.4rem">Starten…</div>
+      <h2 style="margin:0 0 1rem;font-size:1rem;color:#ccc" data-i18n="reset_bezig">Reset bezig…</h2>
+      <div id="reset-fase-label" style="font-size:.8rem;color:#888;margin-bottom:.4rem" data-i18n="reset_starten">Starten…</div>
       <div style="background:#111;border-radius:4px;height:12px;overflow:hidden;margin-bottom:.5rem">
         <div id="reset-balk" style="height:100%;width:0%;background:#4a8abf;transition:width .2s"></div>
       </div>
@@ -1340,8 +1361,8 @@ def start_server():
   <div id="lb-inner">
     <div id="lb-header">
       <span id="lb-teller"></span>
-      <span style="font-size:.75rem;color:#666">H = hartje &nbsp;·&nbsp; ← → = bladeren &nbsp;·&nbsp; Esc = sluiten</span>
-      <button type="button" onclick="sluitLightbox()" style="background:none;border:none;color:#888;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 .2rem;margin-left:.5rem" title="Sluiten">&#215;</button>
+      <span style="font-size:.75rem;color:#666" data-i18n="lb_sneltoetsen">H = hartje &nbsp;·&nbsp; ← → = bladeren &nbsp;·&nbsp; Esc = sluiten</span>
+      <button type="button" onclick="sluitLightbox()" style="background:none;border:none;color:#888;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 .2rem;margin-left:.5rem" data-i18n-title="lb_sluiten" title="Sluiten">&#215;</button>
     </div>
     <div id="lb-fotos"></div>
     <div id="lb-nav">
@@ -1350,8 +1371,8 @@ def start_server():
     </div>
     <div id="lb-acties">
       <span id="lb-info"></span>
-      <button type="button" class="lb-btn-over" onclick="sluitLightbox()">Sla over</button>
-      <button type="button" class="lb-btn-bevestig" id="lb-bevestig" onclick="bevestigLightbox()">Bevestig keuze</button>
+      <button type="button" class="lb-btn-over" onclick="sluitLightbox()" data-i18n="lb_sla_over">Sla over</button>
+      <button type="button" class="lb-btn-bevestig" id="lb-bevestig" onclick="bevestigLightbox()" data-i18n="lb_bevestig">Bevestig keuze</button>
     </div>
   </div>
 </div>
@@ -1394,7 +1415,7 @@ function _renderMaandBoom(jm, laterUitzoeken) {{
     lbl.innerHTML = totaal ? ` <span class="boom-count">(${{totaal}})</span>` : '';
   }}
   if (!jm || !Object.keys(jm).length) {{
-    container.innerHTML = '<span style="color:#444;font-size:.7rem;padding:4px 10px;display:block">Geen mappen.</span>';
+    container.innerHTML = '<span style="color:#444;font-size:.7rem;padding:4px 10px;display:block">' + t('tree_geen_mappen') + '</span>';
     return;
   }}
   const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -1459,7 +1480,7 @@ function _renderAlbumBoom(nodes, containerId) {{
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!nodes || !nodes.length) {{
-    el.innerHTML = '<span style="color:#444;font-size:.7rem;padding:4px 10px;display:block">Leeg.</span>';
+    el.innerHTML = '<span style="color:#444;font-size:.7rem;padding:4px 10px;display:block">' + t('tree_leeg') + '</span>';
     return;
   }}
   el.innerHTML = _renderBoomNodes(nodes, 0);
@@ -1470,7 +1491,7 @@ function _renderPrullenbakBoom(nodes, containerId) {{
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!nodes || !nodes.length) {{
-    el.innerHTML = '<span style="color:#444;font-size:.7rem;padding:4px 10px;display:block">Leeg.</span>';
+    el.innerHTML = '<span style="color:#444;font-size:.7rem;padding:4px 10px;display:block">' + t('tree_leeg') + '</span>';
     return;
   }}
   el.innerHTML = _renderPbNodes(nodes, 0);
@@ -1523,8 +1544,8 @@ function _renderBoomNodes(nodes, diepte) {{
         <span class="boom-pijl">${{heeftSub ? '&#9658;' : '&nbsp;'}}</span>
         <span class="boom-naam" ondblclick="toonHernoemModal('${{esc}}')">${{naamEsc}}${{cntHtml}}</span>
         <span class="boom-rij-acties">
-          <button class="boom-rij-btn" title="Nieuwe submap" onclick="event.stopPropagation();toonNieuweMapModal(null,'${{esc}}')">+</button>
-          <button class="boom-rij-btn" title="Hernoemen" onclick="event.stopPropagation();toonHernoemModal('${{esc}}')">✎</button>
+          <button class="boom-rij-btn" title="${{t('tree_nieuwe_submap_title')}}" onclick="event.stopPropagation();toonNieuweMapModal(null,'${{esc}}')">+</button>
+          <button class="boom-rij-btn" title="${{t('tree_hernoem_title')}}" onclick="event.stopPropagation();toonHernoemModal('${{esc}}')">✎</button>
         </span>
       </div>${{sub}}</div>`;
   }}).join('');
@@ -1585,7 +1606,7 @@ function fotoDragStart(e, el) {{
   const n = selectie.size || 1;
   const tt = _dragTooltip();
   if (tt) {{
-    tt.textContent = n + ' foto' + (n !== 1 ? "'s" : '');
+    tt.textContent = t('fotos_drag_n').replace('{{n}}', n);
     tt.style.display = 'block';
   }}
 }}
@@ -1696,7 +1717,7 @@ function updateMobielBar() {{
   if (n === 0) {{ bar.classList.add('verborgen'); return; }}
   bar.classList.remove('verborgen');
   document.getElementById('mobiel-verplaats-lbl').textContent =
-    n + ' foto\u2019' + (n !== 1 ? 's' : '') + ' geselecteerd';
+    t('mobiel_n_geselecteerd').replace('{{n}}', n);
 }}
 
 function _flattenBoom(boom, prefix, result) {{
@@ -1714,6 +1735,23 @@ function toggleExtraTools() {{
 function sluitExtraTools() {{
   document.getElementById('extra-tools-dropdown').classList.remove('open');
 }}
+
+function toggleTreePanel() {{
+  const panel = document.getElementById('left-panel');
+  if (!panel) return;
+  const collapsed = panel.dataset.collapsed === '1';
+  if (collapsed) {{
+    panel.dataset.collapsed = '0';
+    panel.style.maxHeight = '';
+    panel.style.overflow = '';
+    panel.style.borderBottom = '';
+  }} else {{
+    panel.dataset.collapsed = '1';
+    panel.style.maxHeight = '0';
+    panel.style.overflow = 'hidden';
+    panel.style.borderBottom = 'none';
+  }}
+}}
 document.addEventListener('click', e => {{
   if (!e.target.closest('#extra-tools-wrap')) sluitExtraTools();
 }});
@@ -1722,7 +1760,7 @@ function toonMobielVerplaats() {{
   if (!selectie.size) return;
   const n = selectie.size;
   document.getElementById('mv-titel').textContent =
-    n + ' foto\u2019' + (n !== 1 ? 's' : '') + ' verplaatsen naar\u2026';
+    t('mobiel_n_verplaatsen').replace('{{n}}', n);
   const lijst = [];
   if (_treeData) {{
     const arch = [];
@@ -1742,7 +1780,7 @@ function toonMobielVerplaats() {{
 function _renderMobielLijst(items) {{
   const el = document.getElementById('mobiel-verplaats-lijst');
   if (!items.length) {{
-    el.innerHTML = '<p style="color:#666;font-size:.8rem;padding:.5rem 0">Geen mappen gevonden.</p>';
+    el.innerHTML = '<p style="color:#666;font-size:.8rem;padding:.5rem 0">' + t('mobiel_geen_mappen') + '</p>';
     return;
   }}
   el.innerHTML = items.map(item => {{
@@ -1801,7 +1839,7 @@ async function bladernInMap(pad) {{
   if (node) node.querySelector('.boom-naam').classList.add('actief');
   const inPb = _prullenbakDir && pad.startsWith(_prullenbakDir);
   document.getElementById('fotos-wrap').classList.toggle('prullenbak-modus', !!inPb);
-  document.getElementById('status').textContent = 'Huidige map: ' + pad;
+  document.getElementById('status').textContent = t('status_huidig_map') + pad;
   updateSidebar();
   let data;
   try {{
@@ -1857,7 +1895,7 @@ let _hernoemPad = null;
 function toonHernoemModal(pad) {{
   _hernoemPad = pad;
   const naam = pad.split('/').pop();
-  document.getElementById('hernoem-huidig').textContent = 'Huidige naam: ' + naam;
+  document.getElementById('hernoem-huidig').textContent = t('hernoem_huidig') + naam;
   const inp = document.getElementById('hernoem-naam');
   inp.value = naam;
   document.getElementById('hernoem-hint').textContent = '';
@@ -1878,7 +1916,7 @@ function valideerHernoem() {{
   const ok   = document.getElementById('hernoem-ok');
   if (!val || val === huidig) {{ hint.textContent = ''; ok.disabled = true; return; }}
   if (/[/\\\\:*?"<>|]/.test(val)) {{
-    hint.textContent = 'Naam mag geen / \\ : * ? " < > | bevatten.'; ok.disabled = true; return;
+    hint.textContent = t('hernoem_hint_ongeldig'); ok.disabled = true; return;
   }}
   hint.textContent = '';
   ok.disabled = false;
@@ -1895,7 +1933,7 @@ async function bevestigHernoem() {{
   const d = await r.json();
   sluitHernoemModal();
   if (d.fout) {{ alert('Fout: ' + d.fout); return; }}
-  document.getElementById('status').textContent = 'Hernoemd naar ' + nieuw;
+  document.getElementById('status').textContent = t('hernoem_klaar') + nieuw;
   _verversTree();
   if (huidigePad && huidigePad.startsWith(_hernoemPad)) bladernInMap(d.nieuw_pad || huidigePad);
   else _herlaadHuidig();
@@ -1912,20 +1950,20 @@ function toonNieuweMapModal(sectie, ouder) {{
   const uitl = document.getElementById('nieuwmap-uitleg');
   let placeholder = '2026-04-02 Vakantie';
   if (sectie === 'datumloos' || (_nieuweMapOuder && _nieuweMapOuder.startsWith(_datumloosDir))) {{
-    placeholder = 'Marktplaats/Babybedje';
-    uitl.textContent = 'Vrije mapnaam. Gebruik / voor submappen.';
+    placeholder = t('nieuwmap_ph_datumloos');
+    uitl.textContent = t('nieuwmap_uitleg_datumloos');
   }} else if (ouder) {{
-    placeholder = 'Subalbum naam';
-    uitl.textContent = 'Submap van: ' + ouder;
+    placeholder = t('nieuwmap_ph_submap');
+    uitl.textContent = t('nieuwmap_uitleg_submap') + ouder;
   }} else {{
-    uitl.textContent = 'Begin bij voorkeur met een datum: 2026-04-02 Omschrijving';
+    uitl.textContent = t('nieuwmap_uitleg_datum');
   }}
   const aantalSel = selectie.size;
   document.getElementById('nieuwmap-titel').textContent =
-    aantalSel > 0 ? `Nieuwe map + ${{aantalSel}} foto'${{aantalSel!==1?'s':''}} verplaatsen` : 'Nieuwe map aanmaken';
+    aantalSel > 0 ? t('nieuwmap_titel_met_fotos').replace('{{n}}', aantalSel) : t('nieuwmap_titel');
   document.getElementById('nieuwmap-ok').textContent =
-    aantalSel > 0 ? 'Aanmaken en verplaatsen' : 'Aanmaken';
-  inp.placeholder = placeholder;
+    aantalSel > 0 ? t('nieuwmap_ok_verplaatsen') : t('nieuwmap_ok');
+  inp.placeholder = placeholder || t('nieuwmap_ph_datum');
 
   // Datumrange voorvullen vanuit geselecteerde foto's (alleen voor verwerkt-sectie)
   const isDatumloosCtx = sectie === 'datumloos' ||
@@ -1962,12 +2000,12 @@ function valideerNieuweMap() {{
   const ok   = document.getElementById('nieuwmap-ok');
   if (!val) {{ hint.textContent = ''; staat.className = 'album-staat'; ok.disabled = true; return; }}
   if (/[\\\\:*?"<>|]/.test(val)) {{
-    hint.textContent = 'Naam mag geen \\ : * ? " < > | bevatten.'; staat.className = 'album-staat rood'; ok.disabled = true; return;
+    hint.textContent = t('nieuwmap_hint_ongeldig'); staat.className = 'album-staat rood'; ok.disabled = true; return;
   }}
   const isDatumloos = _nieuweMapSectie === 'datumloos' ||
     (_nieuweMapOuder && _nieuweMapOuder.startsWith(_datumloosDir));
   if (!isDatumloos && !/^\d{{4}}-\d{{2}}-\d{{2}}/.test(val) && !_nieuweMapOuder) {{
-    hint.textContent = 'Tip: begin met een datum voor betere sortering.';
+    hint.textContent = t('nieuwmap_hint_geen_datum');
     staat.className = 'album-staat oranje';
   }} else {{
     hint.textContent = '';
@@ -2089,7 +2127,7 @@ async function laadMaand(maand, knop) {{
     if (!resp.ok) throw new Error(`Server fout: ${{resp.status}}`);
     data = await resp.json();
   }} catch(e) {{
-    document.getElementById('fotos').innerHTML = `<p style="color:#c66">Fout bij laden: ${{e.message}}</p>`;
+    document.getElementById('fotos').innerHTML = `<p style="color:#c66">${{t('status_fout_laden')}}${{e.message}}</p>`;
     return;
   }}
   renderFotos(data.groepen || []);
@@ -2098,7 +2136,7 @@ async function laadMaand(maand, knop) {{
 function renderFotos(groepen) {{
   _laatsteKlik = null;
   const div = document.getElementById('fotos');
-  if (!groepen.length) {{ div.innerHTML = "<p style='color:#666'>Geen foto's.</p>"; return; }}
+  if (!groepen.length) {{ div.innerHTML = "<p style='color:#666'>" + t('fotos_geen') + "</p>"; return; }}
   let html = '';
   huidigeGroepen = groepen;
   let huidigedag = null;
@@ -2111,12 +2149,12 @@ function renderFotos(groepen) {{
       html += `<div class="dag-header">${{formatDag(dagDatum)}}</div>`;
     }}
     if (type === 'tight') {{
-      const span = g.span_sec < 60 ? `${{g.span_sec}} seconden` : `${{Math.round(g.span_sec/60)}} minuten`;
-      const label = `${{fotos.length}} foto's geschoten binnen ${{span}} — klik om te reviewen`;
+      const span = g.span_sec < 60 ? `${{g.span_sec}} ${{t('burst_sec')}}` : `${{Math.round(g.span_sec/60)}} ${{t('burst_min')}}`;
+      const label = t('burst_tight').replace('{{n}}', fotos.length).replace('{{span}}', span);
       html += `<div class="burst tight"><div class="burst-label" onclick="openLightbox(${{gi}}, event)">${{label}}</div><div class="grid">`;
     }} else if (type === 'moment') {{
-      const span = g.span_sec < 60 ? `${{g.span_sec}} seconden` : `${{Math.round(g.span_sec/60)}} minuten`;
-      const label = `${{fotos.length}} vergelijkbare foto's geschoten binnen ${{span}} — klik om te reviewen`;
+      const span = g.span_sec < 60 ? `${{g.span_sec}} ${{t('burst_sec')}}` : `${{Math.round(g.span_sec/60)}} ${{t('burst_min')}}`;
+      const label = t('burst_moment').replace('{{n}}', fotos.length).replace('{{span}}', span);
       html += `<div class="burst moment"><div class="burst-label" onclick="openLightbox(${{gi}}, event)">${{label}}</div><div class="grid">`;
     }} else {{
       html += '<div class="grid" style="margin-bottom:8px">';
@@ -2127,8 +2165,8 @@ function renderFotos(groepen) {{
       const ext = f.naam.includes('.') ? f.naam.split('.').pop().toLowerCase() : '';
       html += `<div class="foto${{sel}}" draggable="true" data-pad="${{f.rel}}" data-naam="${{f.naam}}" data-thumb="${{thumbUrl}}" data-datum="${{f.datum_iso||''}}" data-datum-nl="${{f.datum||''}}" data-grootte="${{f.grootte||0}}" onclick="toggle(this,event)" ondragstart="fotoDragStart(event,this)">
         ${{ext ? `<span class="ext-badge">${{ext}}</span>` : ''}}
-        <button class="foto-del" title="Naar prullenbak" onclick="verwijderFoto(event,this)">×</button>
-        <button class="foto-zoom" title="Vergroten" onclick="openFotoZoom(event,this)">⤢</button>
+        <button class="foto-del" title="${{t('foto_prullenbak_title')}}" onclick="verwijderFoto(event,this)">×</button>
+        <button class="foto-zoom" title="${{t('foto_zoom_title')}}" onclick="openFotoZoom(event,this)">⤢</button>
         <button class="foto-info-btn" title="Info" onclick="toonFotoInfo(event,this)">ℹ</button>
         <img src="${{thumbUrl}}" alt="${{f.naam}}" draggable="false">
         <div class="naam">${{f.naam}}</div>
@@ -2218,14 +2256,14 @@ function updateSidebar() {{
   const inPb = huidigePad && _prullenbakDir && huidigePad.startsWith(_prullenbakDir);
   if (btn) {{
     btn.disabled = n === 0 || !!inPb;
-    btn.textContent = n > 0 ? `\U0001F5D1 Verwijder (${{n}})` : '\U0001F5D1 Verwijder';
+    btn.textContent = '\U0001F5D1 ' + t('btn_verwijder') + (n > 0 ? ' (' + n + ')' : '');
   }}
   updateMobielBar();
   if (n === 0) {{
-    sb.innerHTML = '<h3>Geselecteerd</h3><p class="sb-leeg">Nog niets geselecteerd.</p>';
+    sb.innerHTML = '<h3>' + t('sidebar_title') + '</h3><p class="sb-leeg">' + t('sidebar_leeg') + '</p>';
     return;
   }}
-  let html = `<h3>Geselecteerd (${{n}})</h3>`;
+  let html = '<h3>' + t('sidebar_title') + ' (' + n + ')</h3>';
   for (const [pad, {{naam, thumb}}] of selectie) {{
     const safePad = pad.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     html += `<div class="sb-item">
@@ -2244,14 +2282,14 @@ async function verwijderSelectie() {{
   const paden = [...selectie.keys()];
   if (!paden.length) return;
   const n = paden.length;
-  if (!confirm(`Weet je zeker dat je ${{n}} foto${{n !== 1 ? "'s" : ''}} naar de prullenbak wilt verplaatsen?`)) return;
+  if (!confirm(t('confirm_pb').replace('{{n}}', n))) return;
   const r = await fetch('/prullenbak', {{
     method: 'POST',
     headers: {{'Content-Type': 'application/json'}},
     body: JSON.stringify({{paden, submap: 'losse_items'}})
   }});
   const d = await r.json();
-  document.getElementById('status').textContent = `${{d.verplaatst || 0}} foto\u2019s naar prullenbak verplaatst.`;
+  document.getElementById('status').textContent = t('status_naar_pb').replace('{{n}}', d.verplaatst || 0);
   if (d.jm) verversNav(d.jm);
   selectie.clear();
   updateSidebar();
@@ -2272,7 +2310,7 @@ function allesToggle() {{
 }}
 
 async function bewaarLater() {{
-  if (!selectie.size) {{ alert("Selecteer eerst foto's"); return; }}
+  if (!selectie.size) {{ alert(t('alert_selecteer_eerst')); return; }}
   const paden = [...selectie.keys()];
   const laterPad = (_uitzoeken ? _uitzoeken + '/Later uitzoeken' : 'Later uitzoeken');
   const r = await fetch('/verplaats', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{paden, pad:laterPad}})}});
@@ -2307,20 +2345,20 @@ async function toonFotoInfo(e, btn) {{
   panel.style.top  = py + 'px';
   panel.style.display = 'block';
   document.getElementById('info-naam').textContent = rel.split('/').pop();
-  document.getElementById('info-inhoud').innerHTML = '<span style="color:#555">Laden…</span>';
+  document.getElementById('info-inhoud').innerHTML = '<span style="color:#555">' + t('status_laden') + '</span>';
   document.getElementById('info-kaart').style.display = 'none';
   try {{
     const d = await (await fetch('/info?pad=' + encodeURIComponent(rel))).json();
     let html = '';
-    html += _infoRij('Map', d.map || '—');
-    html += _infoRij('Datum', d.datum || '—');
-    html += _infoRij('Grootte', fmtBytes(d.grootte));
+    html += _infoRij(t('info_lbl_map'), d.map || '—');
+    html += _infoRij(t('info_lbl_datum'), d.datum || '—');
+    html += _infoRij(t('info_lbl_grootte'), fmtBytes(d.grootte));
     if (d.gps) {{
       const osmUrl = `https://www.openstreetmap.org/?mlat=${{d.gps.lat}}&mlon=${{d.gps.lng}}#map=15/${{d.gps.lat}}/${{d.gps.lng}}`;
       html += _infoRij('GPS', `<a href="${{osmUrl}}" target="_blank" style="color:#4a8abf">${{d.gps.lat}}, ${{d.gps.lng}}</a>`);
     }}
-    if (d.locatie) html += _infoRij('Locatie', d.locatie);
-    document.getElementById('info-inhoud').innerHTML = html || '<span style="color:#555">Geen extra info.</span>';
+    if (d.locatie) html += _infoRij(t('info_lbl_locatie'), d.locatie);
+    document.getElementById('info-inhoud').innerHTML = html || '<span style="color:#555">' + t('info_geen') + '</span>';
     if (d.gps) {{
       const kaart = document.getElementById('info-kaart');
       const b = 0.008;
@@ -2328,7 +2366,7 @@ async function toonFotoInfo(e, btn) {{
       kaart.style.display = 'block';
     }}
   }} catch(_) {{
-    document.getElementById('info-inhoud').innerHTML = '<span style="color:#c66">Fout bij laden.</span>';
+    document.getElementById('info-inhoud').innerHTML = '<span style="color:#c66">' + t('info_fout') + '</span>';
   }}
 }}
 
@@ -2372,13 +2410,13 @@ function toonVoortgang(d) {{
     const pct = d.totaal > 0 ? Math.round(d.stap / d.totaal * 100) : 0;
     document.getElementById('reset-balk').style.width = pct + '%';
     document.getElementById('reset-fase-label').textContent =
-      (d.fase === 'download' ? 'Downloaden' : 'Presorteren') + ` (${{d.stap}}/${{d.totaal}})`;
+      (d.fase === 'download' ? t('progress_downloaden') : t('progress_presorteren')) + ` (${{d.stap}}/${{d.totaal}})`;
     document.getElementById('reset-bericht').textContent = d.bericht || '';
   }} else {{
     // Standalone presort — toon in voortgangsbalk bovenin
     const pct = d.totaal > 0 ? Math.round(d.stap / d.totaal * 100) : 0;
     document.getElementById('progress').style.width = pct + '%';
-    document.getElementById('status').textContent = `Presorteren: ${{d.stap}}/${{d.totaal}} — ${{d.bericht}}`;
+    document.getElementById('status').textContent = t('progress_presorteren') + `: ${{d.stap}}/${{d.totaal}} — ${{d.bericht}}`;
   }}
 }}
 
@@ -2529,8 +2567,8 @@ function renderLightbox() {{
   const weg     = totaal - bewaard;
   document.getElementById('lb-info').textContent =
     bewaard > 0
-      ? `${{bewaard}} bewaard, ${{weg}} naar prullenbak`
-      : 'Geef minstens 1 foto een hartje om te bevestigen';
+      ? t('lb_bewaard').replace('{{b}}', bewaard).replace('{{w}}', weg)
+      : '';
   document.getElementById('lb-bevestig').disabled = bewaard === 0;
 }}
 
@@ -2580,13 +2618,18 @@ document.addEventListener('keydown', e => {{
 function sliderVerander(val) {{
   document.documentElement.style.setProperty('--foto-breedte', val + 'px');
   document.getElementById('breedte-label').textContent = val + 'px';
+  const ddLbl = document.getElementById('breedte-label-dd');
+  if (ddLbl) ddLbl.textContent = val + 'px';
   localStorage.setItem('fc_breedte', val);
 }}
 (function() {{
   const opgeslagen = localStorage.getItem('fc_breedte');
   if (opgeslagen) {{
     const s = document.getElementById('breedte-slider');
-    if (s) {{ s.value = opgeslagen; sliderVerander(opgeslagen); }}
+    const sd = document.getElementById('breedte-slider-dd');
+    if (s) {{ s.value = opgeslagen; }}
+    if (sd) {{ sd.value = opgeslagen; }}
+    sliderVerander(opgeslagen);
   }}
 }})();
 
