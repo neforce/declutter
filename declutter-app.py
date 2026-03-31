@@ -1730,10 +1730,13 @@ function _renderMobielLijst(items) {{
     return;
   }}
   el.innerHTML = items.map(item => {{
-    const safePad = item.pad.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const safePad   = item.pad.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const safeLabel = item.label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<div class="mv-item" onclick="kiesMobielDoel('${{safePad}}')">${{safeLabel}}</div>`;
+    return `<div class="mv-item" data-pad="${{safePad}}">${{safeLabel}}</div>`;
   }}).join('');
+  el.querySelectorAll('.mv-item').forEach(div => {{
+    div.addEventListener('click', () => kiesMobielDoel(div.dataset.pad));
+  }});
 }}
 
 function filterMobielVerplaats() {{
@@ -2208,14 +2211,17 @@ function updateSidebar() {{
   }}
   let html = `<h3>Geselecteerd (${{n}})</h3>`;
   for (const [pad, {{naam, thumb}}] of selectie) {{
-    const escapedPad = pad.replace(/'/g, "\\'");
+    const safePad = pad.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     html += `<div class="sb-item">
       <img class="sb-thumb" src="${{thumb}}" alt="">
       <span class="sb-naam" title="${{naam}}">${{naam}}</span>
-      <button type="button" class="sb-x" onclick="deselecteer('${{escapedPad}}')">✕</button>
+      <button type="button" class="sb-x" data-pad="${{safePad}}">✕</button>
     </div>`;
   }}
   sb.innerHTML = html;
+  sb.querySelectorAll('.sb-x').forEach(btn => {{
+    btn.addEventListener('click', () => deselecteer(btn.dataset.pad));
+  }});
 }}
 
 async function verwijderSelectie() {{
