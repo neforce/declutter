@@ -7,19 +7,19 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# ── Defaults (overschrijfbaar via .env) ───────────────────────────────────────
+# ── Defaults (overridable via .env) ───────────────────────────────────────────
 
-BASE_DIR       = Path("./test-nas")
-ARCHIEF_DIR    = "verwerkt"
-UITZOEKEN_DIR  = "in_behandeling"
-DUMP_DIR       = "ruwe_data"
-PRULLENBAK_DIR = "prullenbak"
-DATUMLOOS_DIR  = "datumloos"
-PORT           = 8765
-IMMICH_URL     = "http://localhost:2283"
+BASE_DIR      = Path("./test-nas")
+ARCHIVE_DIR   = "verwerkt"
+INBOX_DIR     = "in_behandeling"
+RAW_DIR       = "ruwe_data"
+TRASH_DIR     = "prullenbak"
+DATELESS_DIR  = "datumloos"
+PORT          = 8765
+IMMICH_URL    = "http://localhost:2283"
 IMMICH_API_KEY = ""
-DEBUG          = False
-PRESORT_DEBUG  = False
+DEBUG         = False
+PRESORT_DEBUG = False
 
 DATA_DIR          = Path(__file__).parent
 TRANSLATIONS_DIR  = Path(__file__).parent / "translations"
@@ -61,21 +61,36 @@ def _laad_env_bestand(pad: Path) -> dict:
     return result
 
 def _toepas_env(cfg: dict):
-    global BASE_DIR, ARCHIEF_DIR, UITZOEKEN_DIR, DUMP_DIR, PRULLENBAK_DIR, DATUMLOOS_DIR, PORT
+    global BASE_DIR, ARCHIVE_DIR, INBOX_DIR, RAW_DIR, TRASH_DIR, DATELESS_DIR, PORT
     global IMMICH_URL, IMMICH_API_KEY, DEBUG, PRESORT_DEBUG, DATA_DIR
     global RECENTS_FILE, THUMBCACHE_DIR, DATUMCACHE_FILE, LOG_FILE
-    if "DATA_DIR"        in cfg:
+
+    # Deprecated Dutch variable names → English replacements.
+    # These will be removed in a future version.
+    _deprecated = {
+        "ARCHIEF_DIR":    "ARCHIVE_DIR",
+        "UITZOEKEN_DIR":  "INBOX_DIR",
+        "DUMP_DIR":       "RAW_DIR",
+        "PRULLENBAK_DIR": "TRASH_DIR",
+        "DATUMLOOS_DIR":  "DATELESS_DIR",
+    }
+    for old, new in _deprecated.items():
+        if old in cfg and new not in cfg:
+            print(f"[DEPRECATION] '{old}' is deprecated — please rename it to '{new}' in your .env file.")
+            cfg[new] = cfg[old]
+
+    if "DATA_DIR"       in cfg:
         DATA_DIR        = Path(cfg["DATA_DIR"])
         RECENTS_FILE    = DATA_DIR / "recents.json"
         THUMBCACHE_DIR  = DATA_DIR / ".thumbcache"
         DATUMCACHE_FILE = DATA_DIR / ".datumcache.json"
         LOG_FILE        = DATA_DIR / "declutter.log"
-    if "BASE_DIR"        in cfg: BASE_DIR        = Path(cfg["BASE_DIR"])
-    if "ARCHIEF_DIR"     in cfg: ARCHIEF_DIR     = cfg["ARCHIEF_DIR"]
-    if "UITZOEKEN_DIR"   in cfg: UITZOEKEN_DIR   = cfg["UITZOEKEN_DIR"]
-    if "DUMP_DIR"        in cfg: DUMP_DIR        = cfg["DUMP_DIR"]
-    if "PRULLENBAK_DIR"  in cfg: PRULLENBAK_DIR  = cfg["PRULLENBAK_DIR"]
-    if "DATUMLOOS_DIR"   in cfg: DATUMLOOS_DIR   = cfg["DATUMLOOS_DIR"]
+    if "BASE_DIR"       in cfg: BASE_DIR       = Path(cfg["BASE_DIR"])
+    if "ARCHIVE_DIR"    in cfg: ARCHIVE_DIR    = cfg["ARCHIVE_DIR"]
+    if "INBOX_DIR"      in cfg: INBOX_DIR      = cfg["INBOX_DIR"]
+    if "RAW_DIR"        in cfg: RAW_DIR        = cfg["RAW_DIR"]
+    if "TRASH_DIR"      in cfg: TRASH_DIR      = cfg["TRASH_DIR"]
+    if "DATELESS_DIR"   in cfg: DATELESS_DIR   = cfg["DATELESS_DIR"]
     if "PORT"           in cfg:
         try: PORT = int(cfg["PORT"])
         except ValueError: pass
@@ -117,10 +132,10 @@ def maak_testdata(aantal=40, progress_cb=None):
     if BASE_DIR.exists():
         shutil.rmtree(BASE_DIR)
 
-    for m in [BASE_DIR / DUMP_DIR, BASE_DIR / UITZOEKEN_DIR, BASE_DIR / ARCHIEF_DIR, BASE_DIR / DATUMLOOS_DIR]:
+    for m in [BASE_DIR / RAW_DIR, BASE_DIR / INBOX_DIR, BASE_DIR / ARCHIVE_DIR, BASE_DIR / DATELESS_DIR]:
         m.mkdir(parents=True, exist_ok=True)
 
-    dump = BASE_DIR / DUMP_DIR
+    dump = BASE_DIR / RAW_DIR
     foto_paden = []
     for n in range(1, aantal + 1):
         pad = dump / f"foto_{n:03d}.jpg"
@@ -152,8 +167,8 @@ def maak_testdata(aantal=40, progress_cb=None):
 
 def presort(debug=False, progress_cb=None):
     import time
-    bronmappen = [BASE_DIR / DUMP_DIR]
-    uitzoeken = BASE_DIR / UITZOEKEN_DIR
+    bronmappen = [BASE_DIR / RAW_DIR]
+    uitzoeken = BASE_DIR / INBOX_DIR
 
     alle_fotos = []
     for bron in bronmappen:
@@ -228,10 +243,10 @@ def run_health_checks():
                 "status": "ok", "detail_key": "health_det_ok"}
 
     checks.append(_dir_check("base_dir",    "health_check_base_dir",  BASE_DIR))
-    checks.append(_dir_check("dump",        "health_check_dump",      BASE_DIR / DUMP_DIR,      optional=True))
-    checks.append(_dir_check("uitzoeken",   "health_check_uitzoeken", BASE_DIR / UITZOEKEN_DIR, need_write=True))
-    checks.append(_dir_check("archief",     "health_check_archief",   BASE_DIR / ARCHIEF_DIR,   need_write=True))
-    checks.append(_dir_check("prullenbak",  "health_check_prullenbak",BASE_DIR / PRULLENBAK_DIR,need_write=True))
+    checks.append(_dir_check("dump",        "health_check_dump",      BASE_DIR / RAW_DIR,      optional=True))
+    checks.append(_dir_check("uitzoeken",   "health_check_uitzoeken", BASE_DIR / INBOX_DIR, need_write=True))
+    checks.append(_dir_check("archief",     "health_check_archief",   BASE_DIR / ARCHIVE_DIR,   need_write=True))
+    checks.append(_dir_check("prullenbak",  "health_check_prullenbak",BASE_DIR / TRASH_DIR,need_write=True))
     checks.append(_dir_check("data_dir",    "health_check_data_dir",  DATA_DIR,                 need_write=True))
 
     try:
@@ -405,8 +420,8 @@ def start_server():
     from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
     from urllib.parse import parse_qs, urlparse
 
-    uitzoeken = BASE_DIR / UITZOEKEN_DIR
-    archief   = BASE_DIR / ARCHIEF_DIR
+    uitzoeken = BASE_DIR / INBOX_DIR
+    archief   = BASE_DIR / ARCHIVE_DIR
 
     try:
         from PIL import Image
@@ -494,7 +509,7 @@ def start_server():
 
     def _auto_presort(pad):
         datum = lees_datum(pad)
-        doel_map = (BASE_DIR / UITZOEKEN_DIR) / datum.strftime("%Y-%m")
+        doel_map = (BASE_DIR / INBOX_DIR) / datum.strftime("%Y-%m")
         doel_map.mkdir(parents=True, exist_ok=True)
         doel = doel_map / pad.name
         teller = 2
@@ -509,9 +524,9 @@ def start_server():
 
     def _watcher():
         import time, re as _re
-        bronmappen = [BASE_DIR / DUMP_DIR]
-        uits = BASE_DIR / UITZOEKEN_DIR
-        datumloos_pad = BASE_DIR / DATUMLOOS_DIR
+        bronmappen = [BASE_DIR / RAW_DIR]
+        uits = BASE_DIR / INBOX_DIR
+        datumloos_pad = BASE_DIR / DATELESS_DIR
 
         def scan():
             gevonden = set()
@@ -872,7 +887,7 @@ def start_server():
 <style>
   :root{{--foto-breedte:220px;--left-w:240px;--right-w:210px}}
   *{{box-sizing:border-box}}
-  body{{font-family:sans-serif;margin:0;background:#1a1a1a;color:#eee;overflow-x:hidden}}
+  body{{font-family:sans-serif,'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji';margin:0;background:#1a1a1a;color:#eee;overflow-x:hidden}}
   /* ── Toolbar ── */
   .toolbar{{position:sticky;top:0;background:#111;padding:.5rem .8rem;display:flex;align-items:center;z-index:20;border-bottom:1px solid #333}}
   .toolbar h1{{margin:0;font-size:1rem;white-space:nowrap;color:#f90;letter-spacing:.04em}}
@@ -996,7 +1011,7 @@ def start_server():
   .foto-zoom{{top:20px}}
   .foto-info-btn{{top:41px;font-size:.65rem}}
   .foto:hover .foto-zoom,.foto:hover .foto-info-btn{{opacity:1}}
-  .foto-tijdstip{{font-size:.52rem;color:#555;margin-left:.25rem}}
+  .foto-tijdstip{{color:#888;margin-left:.25rem}}
   /* ── Info-panel ── */
   #info-panel{{position:fixed;z-index:500;background:#1e1e1e;border:1px solid #444;border-radius:7px;padding:.7rem .9rem;width:260px;font-size:.76rem;color:#ccc;box-shadow:0 4px 24px rgba(0,0,0,.85);display:none}}
   .info-rij{{display:flex;gap:.4rem;margin-bottom:.25rem;align-items:flex-start;line-height:1.4}}
@@ -1016,6 +1031,7 @@ def start_server():
   .act-ts{{color:#3a3a3a}}
   .act-naam{{color:#888}}
   .act-naar{{color:#4a7a4a}}
+  .later-uitzoeken-rij{{color:#aaf;font-style:italic}}
   /* ── Tree drag-over ── */
   .boom-rij.drag-over{{background:#1a3a1a;outline:1px solid #4a8}}
   .maand-rij.drag-over{{background:#1a3a1a;outline:1px solid #4a8}}
@@ -1030,7 +1046,7 @@ def start_server():
   .ts-hdr-btn:hover{{color:#8f8;background:#1e2e1e}}
   /* ── Taalknopjes ── */
   .lang-sel{{display:flex;gap:2px;align-items:center;margin-right:.4rem}}
-  .lang-btn{{background:none;border:1px solid transparent;cursor:pointer;font-size:1.05rem;padding:2px 5px;border-radius:4px;opacity:.45;transition:opacity .15s,border-color .15s;line-height:1}}
+  .lang-btn{{background:none;border:1px solid transparent;cursor:pointer;font-size:1.1rem;padding:2px 5px;border-radius:4px;opacity:.75;transition:opacity .15s,border-color .15s;line-height:1}}
   .lang-btn:hover{{opacity:.85}}
   .lang-btn.active{{opacity:1;border-color:#444}}
   /* ── Systeemstatus knop ── */
@@ -1046,6 +1062,10 @@ def start_server():
   /* ── Info-help knop ── */
   #info-help-btn{{position:fixed;right:1rem;bottom:1rem;width:32px;height:32px;border-radius:50%;background:#2a2a2a;color:#888;border:1px solid #444;font-size:1rem;font-weight:bold;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;line-height:1}}
   #info-help-btn:hover{{background:#383838;color:#ccc}}
+  /* ── Mobiel verplaats-picker ── */
+  #mobiel-verplaats-bar{{display:none}}
+  .mv-item{{padding:.55rem .7rem;border-bottom:1px solid #2a2a2a;cursor:pointer;font-size:.82rem;color:#ccc}}
+  .mv-item:hover,.mv-item:active{{background:#2a3a2a;color:#eee}}
   @media(max-width:700px){{
     html,body{{height:auto;overflow:auto}}
     :root{{--foto-breedte:130px;--left-w:100%;--right-w:100%}}
@@ -1054,6 +1074,8 @@ def start_server():
     #left-resizer{{display:none}}
     #fotos-wrap{{overflow:visible}}
     #sidebar{{width:100%;border-left:none;border-top:1px solid #2a2a2a}}
+    #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:sticky;bottom:0;z-index:50;width:100%}}
+    #mobiel-verplaats-bar.verborgen{{display:none!important}}
   }}
 </style>
 </head>
@@ -1133,6 +1155,38 @@ def start_server():
 <!-- Drag-tooltip -->
 <div id="drag-tooltip" style="position:fixed;display:none;background:rgba(30,30,30,.92);color:#f90;border:1px solid #555;border-radius:6px;padding:4px 10px;font-size:.78rem;pointer-events:none;z-index:600"></div>
 
+<!-- Mobiel: verplaats-balk (sticky onderaan, alleen zichtbaar op mobiel als er selectie is) -->
+<div id="mobiel-verplaats-bar" class="verborgen">
+  <span id="mobiel-verplaats-lbl" style="font-size:.82rem;color:#9c9"></span>
+  <button onclick="toonMobielVerplaats()" style="background:#2a6a2a;color:#eee;border:none;border-radius:5px;padding:.4rem .9rem;font-size:.82rem;cursor:pointer;font-weight:bold">&#128193; Verplaats naar&hellip;</button>
+</div>
+
+<!-- Mobiel: verplaats-picker modal (bottom sheet) -->
+<div id="mobiel-verplaats-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;align-items:flex-end;justify-content:center">
+  <div style="background:#1e1e1e;border-radius:12px 12px 0 0;width:100%;max-height:72vh;display:flex;flex-direction:column;padding:1rem 1rem .5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+      <h2 style="margin:0;font-size:.92rem;color:#eee" id="mv-titel">Verplaats naar&hellip;</h2>
+      <button onclick="document.getElementById('mobiel-verplaats-modal').style.display='none'" style="background:none;border:none;color:#888;font-size:1.3rem;cursor:pointer;line-height:1;padding:0 .2rem">&#215;</button>
+    </div>
+    <input type="search" id="mv-filter" placeholder="Zoeken&hellip;" oninput="filterMobielVerplaats()"
+           style="background:#222;border:1px solid #444;color:#eee;border-radius:4px;padding:.38rem .6rem;font-size:.85rem;margin-bottom:.5rem;width:100%">
+    <div id="mobiel-verplaats-lijst" style="overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
+<!-- Opruimen bevestig-modal -->
+<div id="opruim-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center">
+  <div style="background:#1e1e1e;border:1px solid #555;border-radius:8px;padding:1.4rem 1.8rem;max-width:420px;width:90%;color:#eee">
+    <h2 style="margin:0 0 .6rem;font-size:1rem;color:#eee">🧹 Lege mappen opruimen</h2>
+    <p style="margin:0 0 .7rem;font-size:.82rem;color:#aaa">De volgende lege mappen worden verwijderd uit <em>In behandeling</em>:</p>
+    <div id="opruim-lijst" style="max-height:200px;overflow-y:auto;background:#161616;border:1px solid #333;border-radius:4px;padding:.4rem .6rem;margin-bottom:.8rem;font-size:.8rem"></div>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end">
+      <button type="button" onclick="document.getElementById('opruim-modal').style.display='none'" style="background:#383838;color:#ccc;padding:.45rem 1rem;border:none;border-radius:4px;cursor:pointer">Annuleren</button>
+      <button type="button" onclick="bevestigOpruim()" style="background:#1a2a3a;color:#7af;border:1px solid #2a4a6a;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-weight:bold">Opruimen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Nieuwe map modal -->
 <div id="nieuwmap-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center">
   <div style="background:#1e1e1e;border:1px solid #555;border-radius:8px;padding:1.4rem 1.8rem;max-width:420px;width:90%;color:#eee">
@@ -1188,8 +1242,8 @@ def start_server():
 <div id="info-help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;align-items:center;justify-content:center;overflow:auto">
   <div style="background:#1e1e1e;border:1px solid #555;border-radius:8px;padding:1.5rem 2rem;max-width:560px;width:90%;color:#ccc;position:relative;margin:auto">
     <button onclick="document.getElementById('info-help-modal').style.display='none'" style="position:absolute;top:.6rem;right:.8rem;background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer">×</button>
-    <h2 style="margin:0 0 1rem;color:#eee;font-size:1rem">Declutter — gebruiksaanwijzing</h2>
-    <div style="font-size:.82rem;line-height:1.7;display:flex;flex-direction:column;gap:.5rem">
+    <h2 style="margin:0 0 1rem;color:#eee;font-size:1rem" data-i18n="help_title">Declutter — gebruiksaanwijzing</h2>
+    <div id="info-help-body" style="font-size:.82rem;line-height:1.7;display:flex;flex-direction:column;gap:.5rem">
       <div><strong style="color:#f90">Linkerpaneel (boom)</strong><br>
         Klik op een maand of album om de foto's te laden.<br>
         Dubbelklik op een mapnaam om hem te hernoemen, of gebruik het ✎-icoon.<br>
@@ -1288,9 +1342,10 @@ def start_server():
 const selectie = new Map();
 let huidigeMaand = null;
 let huidigePad   = null;
-let _archiefDir   = '';
-let _datumloosDir = '';
+let _archiefDir    = '';
+let _datumloosDir  = '';
 let _prullenbakDir = '';
+let _uitzoeken     = '';
 let _herstelde_anker = localStorage.getItem('fc_anker');
 
 // ── Tree state ─────────────────────────────────────────────────────────────
@@ -1304,7 +1359,7 @@ function toggleTS(sectie) {{
   hdr.classList.toggle('open', open);
 }}
 
-function _renderMaandBoom(jm) {{
+function _renderMaandBoom(jm, laterUitzoeken) {{
   const container = document.getElementById('tree-behandeling');
   if (!container) return;
   // Totaal over alle maanden → header bijwerken
@@ -1338,7 +1393,7 @@ function _renderMaandBoom(jm) {{
       const aantal = (typeof mo === 'object' && mo.aantal) ? mo.aantal : 0;
       const mn = parseInt(maand.slice(5)) - 1;
       const lbl = MAANDEN[mn] || maand.slice(5);
-      const maandPad = ('{UITZOEKEN_DIR}/' + maand).replace(/\\\\/g,'/');
+      const maandPad = ('{INBOX_DIR}/' + maand).replace(/\\\\/g,'/');
       const cntHtml = aantal ? ` <span class="boom-count">(${{aantal}})</span>` : '';
       html += `<div class="maand-rij" id="mr-${{maand}}" data-maand="${{maand}}"
         onclick="laadMaand('${{maand}}',this)"
@@ -1349,6 +1404,18 @@ function _renderMaandBoom(jm) {{
       </div>`;
     }}
     html += '</div>';
+  }}
+  // Later uitzoeken speciale entry
+  if (laterUitzoeken) {{
+    const cntHtml = laterUitzoeken.aantal ? ` <span class="boom-count">(${{laterUitzoeken.aantal}})</span>` : '';
+    const safePad = laterUitzoeken.pad.replace(/"/g,'&quot;');
+    html += `<div class="maand-rij later-uitzoeken-rij" data-pad="${{safePad}}"
+      onclick="bladernInMap('${{safePad}}')"
+      ondragover="_boomDragOver(event,this)"
+      ondragleave="_boomDragLeave(this)"
+      ondrop="_boomDrop(event,'${{safePad}}')">
+      <span>&#9201; Later uitzoeken${{cntHtml}}</span>
+    </div>`;
   }}
   container.innerHTML = html;
   // Open het meest recente jaar automatisch
@@ -1473,7 +1540,8 @@ async function laadTree(forceer) {{
     _archiefDir    = d.archief    || '';
     _datumloosDir  = d.datumloos  || '';
     _prullenbakDir = d.prullenbak || '';
-    _renderMaandBoom(d.jm || {{}});
+    _uitzoeken     = d.uitzoeken  || '';
+    _renderMaandBoom(d.jm || {{}}, d.later_uitzoeken || null);
     _renderAlbumBoom(d.archief_boom    || [], 'tree-verwerkt');
     _renderAlbumBoom(d.datumloos_boom  || [], 'tree-datumloos');
     _renderPrullenbakBoom(d.prullenbak_boom || [], 'tree-prullenbak');
@@ -1602,6 +1670,95 @@ async function _sectionDrop(e, sectie) {{
   document.getElementById('status').textContent = d.bericht || d.fout || '';
   if (d.fout) alert('Fout: ' + d.fout);
   else _verversTree();
+}}
+
+// ── Mobiel: verplaats-picker ─────────────────────────────────────────────────
+function updateMobielBar() {{
+  const bar = document.getElementById('mobiel-verplaats-bar');
+  if (!bar) return;
+  const n = selectie.size;
+  if (n === 0) {{ bar.classList.add('verborgen'); return; }}
+  bar.classList.remove('verborgen');
+  document.getElementById('mobiel-verplaats-lbl').textContent =
+    n + ' foto\u2019' + (n !== 1 ? 's' : '') + ' geselecteerd';
+}}
+
+function _flattenBoom(boom, prefix, result) {{
+  if (!boom) return;
+  boom.forEach(n => {{
+    const label = prefix ? prefix + ' \u203a ' + n.naam : n.naam;
+    result.push({{label, pad: n.pad}});
+    if (n.sub && n.sub.length) _flattenBoom(n.sub, label, result);
+  }});
+}}
+
+function toonMobielVerplaats() {{
+  if (!selectie.size) return;
+  const n = selectie.size;
+  document.getElementById('mv-titel').textContent =
+    n + ' foto\u2019' + (n !== 1 ? 's' : '') + ' verplaatsen naar\u2026';
+  const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const lijst = [];
+  if (_treeData) {{
+    const jm = _treeData.jm || {{}};
+    for (const jaar of Object.keys(jm).sort().reverse()) {{
+      for (const mo of jm[jaar]) {{
+        const maand = typeof mo === 'string' ? mo : mo.naam;
+        const mn = parseInt(maand.slice(5)) - 1;
+        const maandPad = (_uitzoeken ? _uitzoeken + '/' : '') + maand;
+        lijst.push({{label: '\U0001F4C5 ' + jaar + ' \u2013 ' + (MAANDEN[mn] || maand.slice(5)), pad: maandPad}});
+      }}
+    }}
+    const arch = [];
+    _flattenBoom(_treeData.archief_boom || [], '', arch);
+    arch.forEach(i => lijst.push({{label: '\U0001F4C1 ' + i.label, pad: i.pad}}));
+    const dl = [];
+    _flattenBoom(_treeData.datumloos_boom || [], '', dl);
+    dl.forEach(i => lijst.push({{label: '\U0001F4C2 ' + i.label, pad: i.pad}}));
+  }}
+  const lijstEl = document.getElementById('mobiel-verplaats-lijst');
+  lijstEl.dataset.items = JSON.stringify(lijst);
+  document.getElementById('mv-filter').value = '';
+  _renderMobielLijst(lijst);
+  document.getElementById('mobiel-verplaats-modal').style.display = 'flex';
+}}
+
+function _renderMobielLijst(items) {{
+  const el = document.getElementById('mobiel-verplaats-lijst');
+  if (!items.length) {{
+    el.innerHTML = '<p style="color:#666;font-size:.8rem;padding:.5rem 0">Geen mappen gevonden.</p>';
+    return;
+  }}
+  el.innerHTML = items.map(item => {{
+    const safePad = item.pad.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const safeLabel = item.label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="mv-item" onclick="kiesMobielDoel('${{safePad}}')">${{safeLabel}}</div>`;
+  }}).join('');
+}}
+
+function filterMobielVerplaats() {{
+  const q = document.getElementById('mv-filter').value.toLowerCase();
+  let items = [];
+  try {{ items = JSON.parse(document.getElementById('mobiel-verplaats-lijst').dataset.items || '[]'); }} catch(_) {{}}
+  _renderMobielLijst(q ? items.filter(i => i.label.toLowerCase().includes(q)) : items);
+}}
+
+async function kiesMobielDoel(pad) {{
+  document.getElementById('mobiel-verplaats-modal').style.display = 'none';
+  const paden = [...selectie.keys()];
+  if (!paden.length) return;
+  const r = await fetch('/verplaats', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{paden, pad}})
+  }});
+  const d = await r.json();
+  document.getElementById('status').textContent = d.bericht;
+  if (d.jm) verversNav(d.jm);
+  selectie.clear();
+  updateSidebar();
+  _verversTree();
+  _herlaadHuidig();
 }}
 
 const MAANDEN_NL = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
@@ -1747,6 +1904,8 @@ function toonNieuweMapModal(sectie, ouder) {{
   const aantalSel = selectie.size;
   document.getElementById('nieuwmap-titel').textContent =
     aantalSel > 0 ? `Nieuwe map + ${{aantalSel}} foto'${{aantalSel!==1?'s':''}} verplaatsen` : 'Nieuwe map aanmaken';
+  document.getElementById('nieuwmap-ok').textContent =
+    aantalSel > 0 ? 'Aanmaken en verplaatsen' : 'Aanmaken';
   inp.placeholder = placeholder;
 
   // Datumrange voorvullen vanuit geselecteerde foto's (alleen voor verwerkt-sectie)
@@ -1822,7 +1981,66 @@ async function bevestigNieuweMap() {{
 }}
 
 // ── Info-help ──────────────────────────────────────────────────────────────────
+function _bouwInfoHelp() {{
+  if (_lang === 'en') return `
+    <div><strong style="color:#f90">Left panel (tree)</strong><br>
+      Click a month or album to load its photos.<br>
+      Double-click a folder name to rename it, or use the ✎ icon.<br>
+      Drag a <em>folder</em> to another folder or section header to move it.<br>
+      Use the <strong>+</strong> icon next to a section or folder to create a sub-folder.</div>
+    <div><strong style="color:#f90">Selecting &amp; moving photos</strong><br>
+      Click a thumbnail to select it. <strong>Shift+click</strong> for a range. <strong>☑ All</strong> selects all in the current view.<br>
+      Drag selected photos to a folder in the tree — a tooltip shows the count.<br>
+      <strong>⏳ Later</strong> moves the selection to the 'Review later' folder.</div>
+    <div><strong style="color:#f90">New folder</strong><br>
+      Click <strong>+</strong> next to a section or folder. If photos are selected they are moved there immediately.<br>
+      <em>Archived (with date)</em>: start with a date, e.g. <code>2026-04-02 Holiday</code>.<br>
+      <em>No date</em>: no date needed, e.g. <code>Marketplace/Crib</code>.</div>
+    <div><strong style="color:#f90">Toolbar</strong><br>
+      <strong>⚙ Presort</strong> — distributes photos from raw_data by month automatically.<br>
+      <strong>🧹 Clean up</strong> — removes empty YYYY-MM folders from 'To sort'.<br>
+      <strong>🗑 Cache</strong> — clears the thumbnail cache (useful after manual changes).<br>
+      <strong>↺ Reset</strong> — recreates test data (deletes all files!).</div>
+    <div><strong style="color:#f90">Burst groups</strong><br>
+      Photos taken in quick succession are grouped. Click the label to open the lightbox for comparison.</div>
+    <div><strong style="color:#f90">Colour codes (album input)</strong><br>
+      <span style="color:#4c4">●</span> Green = valid format &nbsp;
+      <span style="color:#f80">●</span> Orange = free text without date &nbsp;
+      <span style="color:#c44">●</span> Red = invalid date</div>
+    <div><strong style="color:#f90">Keyboard shortcuts (lightbox)</strong><br>
+      ← → navigate &nbsp;·&nbsp; H = heart &nbsp;·&nbsp; Esc = close</div>`;
+  return `
+    <div><strong style="color:#f90">Linkerpaneel (boom)</strong><br>
+      Klik op een maand of album om de foto's te laden.<br>
+      Dubbelklik op een mapnaam om hem te hernoemen, of gebruik het ✎-icoon.<br>
+      Sleep een <em>map</em> naar een andere map of sectie-header om hem te verplaatsen.<br>
+      Gebruik het <strong>+</strong>-icoon naast een sectie of map voor een nieuwe submap.</div>
+    <div><strong style="color:#f90">Foto's selecteren &amp; verplaatsen</strong><br>
+      Klik op een thumbnail om te selecteren. <strong>Shift+klik</strong> voor bereik. <strong>☑ Alles</strong> selecteert alles in de huidige weergave.<br>
+      Sleep geselecteerde foto's naar een map in de boom — een tooltip toont het aantal.<br>
+      <strong>⏳ Later</strong> verplaatst de selectie naar de map 'Later uitzoeken'.</div>
+    <div><strong style="color:#f90">Nieuwe map</strong><br>
+      Klik <strong>+</strong> naast een sectie of map. Als foto's geselecteerd zijn worden ze er direct naartoe verplaatst.<br>
+      <em>Verwerkt (met datum)</em>: begin met een datum, bijv. <code>2026-04-02 Vakantie</code>.<br>
+      <em>Zonder datum</em>: geen datum nodig, bijv. <code>Marktplaats/Babybedje</code>.</div>
+    <div><strong style="color:#f90">Werkbalk (boven het overzicht)</strong><br>
+      <strong>⚙ Presort</strong> — verdeelt foto's uit ruwe_data automatisch op maand.<br>
+      <strong>🧹 Opruimen</strong> — verwijdert lege YYYY-MM mappen uit 'In behandeling', zodat je weet welke periodes al afgehandeld zijn.<br>
+      <strong>🗑 Cache</strong> — wist de thumbnail-cache (nuttig na handmatige wijzigingen).<br>
+      <strong>↺ Reset</strong> — maakt testdata opnieuw aan (wist alle bestanden!).</div>
+    <div><strong style="color:#f90">Burst-groepen</strong><br>
+      Foto's die snel achter elkaar genomen zijn, worden gegroepeerd. Klik op het label om de lichtbak te openen voor vergelijking.</div>
+    <div><strong style="color:#f90">Kleurcodes album-invoer</strong><br>
+      <span style="color:#4c4">●</span> Groen = geldig formaat &nbsp;
+      <span style="color:#f80">●</span> Oranje = vrije tekst zonder datum &nbsp;
+      <span style="color:#c44">●</span> Rood = ongeldige datum</div>
+    <div><strong style="color:#f90">Sneltoetsen (lichtbak)</strong><br>
+      ← → bladeren &nbsp;·&nbsp; H = hartje &nbsp;·&nbsp; Esc = sluiten</div>`;
+}}
+
 function toonInfoHelp() {{
+  const body = document.getElementById('info-help-body');
+  if (body) body.innerHTML = _bouwInfoHelp();
   document.getElementById('info-help-modal').style.display = 'flex';
 }}
 
@@ -1983,6 +2201,7 @@ function updateSidebar() {{
     btn.disabled = n === 0 || !!inPb;
     btn.textContent = n > 0 ? `\U0001F5D1 Verwijder (${{n}})` : '\U0001F5D1 Verwijder';
   }}
+  updateMobielBar();
   if (n === 0) {{
     sb.innerHTML = '<h3>Geselecteerd</h3><p class="sb-leeg">Nog niets geselecteerd.</p>';
     return;
@@ -2033,7 +2252,8 @@ function allesToggle() {{
 async function bewaarLater() {{
   if (!selectie.size) {{ alert("Selecteer eerst foto's"); return; }}
   const paden = [...selectie.keys()];
-  const r = await fetch('/verplaats', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{paden, album:'Later uitzoeken'}})}});
+  const laterPad = (_uitzoeken ? _uitzoeken + '/Later uitzoeken' : 'Later uitzoeken');
+  const r = await fetch('/verplaats', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{paden, pad:laterPad}})}});
   const d = await r.json();
   document.getElementById('status').textContent = d.bericht;
   if (d.jm) verversNav(d.jm);
@@ -2174,6 +2394,19 @@ async function clearThumbs() {{
 }}
 
 async function opruimLege() {{
+  const r = await fetch('/opruim-check');
+  const d = await r.json();
+  if (!d.mappen || !d.mappen.length) {{
+    document.getElementById('status').textContent = 'Geen lege mappen gevonden.';
+    return;
+  }}
+  document.getElementById('opruim-lijst').innerHTML =
+    d.mappen.map(m => `<div style="padding:2px 0;color:#9cf">&#128193; ${{m}}</div>`).join('');
+  document.getElementById('opruim-modal').style.display = 'flex';
+}}
+
+async function bevestigOpruim() {{
+  document.getElementById('opruim-modal').style.display = 'none';
   const r = await fetch('/opruim', {{method: 'POST'}});
   const d = await r.json();
   document.getElementById('status').textContent = d.bericht;
@@ -2342,7 +2575,7 @@ function sliderVerander(val) {{
   if (!resizer || !panel) return;
   const LS_KEY = 'fc_left_w';
   const opgeslagenW = localStorage.getItem(LS_KEY);
-  if (opgeslagenW) document.documentElement.style.setProperty('--left-w', opgeslagenW + 'px');
+  if (opgeslagenW && window.innerWidth > 700) document.documentElement.style.setProperty('--left-w', opgeslagenW + 'px');
   let startX, startW;
   resizer.addEventListener('mousedown', e => {{
     startX = e.clientX;
@@ -2463,6 +2696,10 @@ function applyTranslations() {{
   document.querySelectorAll('.lang-btn').forEach(btn => {{
     btn.classList.toggle('active', btn.dataset.lang === _lang);
   }});
+  const _ihb = document.getElementById('info-help-body');
+  if (_ihb && document.getElementById('info-help-modal').style.display !== 'none') {{
+    _ihb.innerHTML = _bouwInfoHelp();
+  }}
 }}
 
 async function setLang(code) {{
@@ -2703,16 +2940,27 @@ async function restartServer() {{
                         pass
                     return result
 
-                datumloos_pad = BASE_DIR / DATUMLOOS_DIR
+                datumloos_pad = BASE_DIR / DATELESS_DIR
                 datumloos_pad.mkdir(parents=True, exist_ok=True)
-                prullenbak_pad = BASE_DIR / PRULLENBAK_DIR
+                prullenbak_pad = BASE_DIR / TRASH_DIR
+                later_pad = uitzoeken / "Later uitzoeken"
+                later_data = None
+                if later_pad.exists():
+                    try:
+                        later_aantal = sum(1 for f in later_pad.rglob("*")
+                                           if f.is_file() and f.suffix.lower() in FOTO_EXTS)
+                    except Exception:
+                        later_aantal = 0
+                    later_data = {"pad": str(later_pad.relative_to(BASE_DIR)), "aantal": later_aantal}
                 self.send_json({
-                    "archief": ARCHIEF_DIR,
+                    "archief": ARCHIVE_DIR,
                     "archief_boom": _boom(archief),
-                    "datumloos": DATUMLOOS_DIR,
+                    "datumloos": DATELESS_DIR,
                     "datumloos_boom": _boom(datumloos_pad),
-                    "prullenbak": PRULLENBAK_DIR,
+                    "prullenbak": TRASH_DIR,
                     "prullenbak_boom": _boom(prullenbak_pad) if prullenbak_pad.exists() else [],
+                    "uitzoeken": INBOX_DIR,
+                    "later_uitzoeken": later_data,
                     "jm": jaren_maanden(),
                 })
                 return
@@ -2731,6 +2979,17 @@ async function restartServer() {{
                 self.send_header("Cache-Control", "public, max-age=3600")
                 self.end_headers()
                 self.wfile.write(data)
+                return
+
+            if parsed.path == "/opruim-check":
+                import re as _re2
+                leeg = []
+                if uitzoeken.exists():
+                    for sub in sorted(uitzoeken.iterdir(), key=lambda x: x.name):
+                        if sub.is_dir() and _re2.match(r'^\d{4}-\d{2}$', sub.name):
+                            if not _heeft_echte_inhoud(sub):
+                                leeg.append(sub.name)
+                self.send_json({"mappen": leeg})
                 return
 
             if parsed.path == "/healthcheck":
@@ -2818,7 +3077,7 @@ async function restartServer() {{
                 submap = data.get("submap", "losse_items")
                 if submap not in ("duplicaten", "losse_items"):
                     submap = "losse_items"
-                prullenbak = BASE_DIR / PRULLENBAK_DIR / submap
+                prullenbak = BASE_DIR / TRASH_DIR / submap
                 prullenbak.mkdir(parents=True, exist_ok=True)
                 base_resolved = BASE_DIR.resolve()
                 count = 0
@@ -2965,7 +3224,7 @@ async function restartServer() {{
                         if not basis.is_relative_to(base_resolved):
                             self.send_json({"fout": "ouder buiten BASE_DIR"}, 400); return
                     elif sectie == "datumloos":
-                        basis = BASE_DIR / DATUMLOOS_DIR
+                        basis = BASE_DIR / DATELESS_DIR
                     else:
                         basis = archief  # standaard: verwerkt
                     doel_map = basis / Path(naam)
