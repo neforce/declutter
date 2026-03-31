@@ -1072,7 +1072,8 @@ def start_server():
     #main-wrap{{flex-direction:column;overflow:visible}}
     #left-panel{{width:100%!important;max-height:240px;border-right:none;border-bottom:1px solid #2a2a2a}}
     #left-resizer{{display:none}}
-    #fotos-wrap{{overflow:visible}}
+    #cols-wrap{{flex-direction:column;overflow:visible;height:auto}}
+    #fotos-wrap{{width:100%;overflow:visible;min-width:0}}
     #sidebar{{width:100%;border-left:none;border-top:1px solid #2a2a2a}}
     #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:sticky;bottom:0;z-index:50;width:100%}}
     #mobiel-verplaats-bar.verborgen{{display:none!important}}
