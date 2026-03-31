@@ -1080,7 +1080,8 @@ def start_server():
     html,body{{height:auto;overflow:auto}}
     :root{{--foto-breedte:130px;--left-w:100%;--right-w:100%}}
     #main-wrap{{flex-direction:column;overflow:visible}}
-    #left-panel{{width:100%!important;max-height:240px;border-right:none;border-bottom:1px solid #2a2a2a}}
+    #left-panel{{position:fixed!important;top:calc(var(--mob-tb-top,46px) + 38px);left:0;right:0;max-height:0;overflow:hidden;z-index:15;border-right:none;border-bottom:none;transition:max-height .2s ease}}
+    #left-panel.mob-open{{max-height:65vh;overflow-y:auto;border-bottom:1px solid #333;box-shadow:0 4px 14px rgba(0,0,0,.6)}}
     #left-resizer{{display:none}}
     #cols-wrap{{flex-direction:column;overflow:visible;height:auto}}
     #fotos-wrap{{width:100%;overflow:visible;min-width:0}}
@@ -1743,19 +1744,16 @@ function sluitExtraTools() {{
 function toggleTreePanel() {{
   const panel = document.getElementById('left-panel');
   if (!panel) return;
-  const collapsed = panel.dataset.collapsed === '1';
-  if (collapsed) {{
-    panel.dataset.collapsed = '0';
-    panel.style.maxHeight = '';
-    panel.style.overflow = '';
-    panel.style.borderBottom = '';
-  }} else {{
-    panel.dataset.collapsed = '1';
-    panel.style.maxHeight = '0';
-    panel.style.overflow = 'hidden';
-    panel.style.borderBottom = 'none';
-  }}
+  panel.classList.toggle('mob-open');
 }}
+document.addEventListener('click', function(e) {{
+  const panel = document.getElementById('left-panel');
+  if (panel && panel.classList.contains('mob-open') &&
+      !panel.contains(e.target) &&
+      !e.target.closest('#tree-toggle-btn')) {{
+    panel.classList.remove('mob-open');
+  }}
+}});
 document.addEventListener('click', e => {{
   if (!e.target.closest('#extra-tools-wrap')) sluitExtraTools();
 }});
@@ -1835,6 +1833,7 @@ function verversNav(jm) {{
 }}
 
 async function bladernInMap(pad) {{
+  document.getElementById('left-panel')?.classList.remove('mob-open');
   huidigePad   = pad;
   huidigeMaand = null;
   document.querySelectorAll('.maand-rij').forEach(r => r.classList.remove('actief'));
@@ -2106,6 +2105,7 @@ function toonInfoHelp() {{
 }}
 
 async function laadMaand(maand, knop) {{
+  document.getElementById('left-panel')?.classList.remove('mob-open');
   huidigeMaand = maand;
   huidigePad   = null;
   localStorage.setItem('fc_maand', maand);
