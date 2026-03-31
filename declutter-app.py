@@ -1046,9 +1046,9 @@ def start_server():
   .ts-hdr-btn:hover{{color:#8f8;background:#1e2e1e}}
   /* ── Taalknopjes ── */
   .lang-sel{{display:flex;gap:2px;align-items:center;margin-right:.4rem}}
-  .lang-btn{{background:none;border:1px solid transparent;cursor:pointer;font-size:1.1rem;padding:2px 5px;border-radius:4px;opacity:.75;transition:opacity .15s,border-color .15s;line-height:1}}
-  .lang-btn:hover{{opacity:.85}}
-  .lang-btn.active{{opacity:1;border-color:#444}}
+  .lang-btn{{background:none;border:1px solid transparent;cursor:pointer;font-size:.72rem;font-weight:bold;letter-spacing:.04em;padding:3px 7px;border-radius:4px;color:#666;transition:color .15s,border-color .15s,background .15s;line-height:1}}
+  .lang-btn:hover{{color:#bbb}}
+  .lang-btn.active{{color:#eee;border-color:#555;background:#2a2a2a}}
   /* ── Systeemstatus knop ── */
   #health-btn{{background:#0f1f0f;border:1px solid #1e3a1e;color:#6b8;width:26px;height:26px;border-radius:4px;font-size:.8rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:.3rem;flex-shrink:0}}
   #health-btn:hover{{background:#1a2f1a;color:#8f8}}
@@ -1084,8 +1084,8 @@ def start_server():
   <h1>Declutter</h1>
   <div style="flex:1"></div>
   <div class="lang-sel">
-    <button class="lang-btn" data-lang="nl" onclick="setLang('nl')" title="Nederlands">🇳🇱</button>
-    <button class="lang-btn" data-lang="en" onclick="setLang('en')" title="English">🇬🇧</button>
+    <button class="lang-btn" data-lang="nl" onclick="setLang('nl')" title="Nederlands">NL</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')" title="English">EN</button>
   </div>
   <button id="health-btn" onclick="toonHealth()" data-i18n-title="health_btn_title" title="Systeemstatus">⚡</button>
 </div>
@@ -2581,7 +2581,16 @@ function sliderVerander(val) {{
   if (!resizer || !panel) return;
   const LS_KEY = 'fc_left_w';
   const opgeslagenW = localStorage.getItem(LS_KEY);
-  if (opgeslagenW && window.innerWidth > 700) document.documentElement.style.setProperty('--left-w', opgeslagenW + 'px');
+  const _mq = window.matchMedia('(max-width:700px)');
+  if (opgeslagenW && !_mq.matches) document.documentElement.style.setProperty('--left-w', opgeslagenW + 'px');
+  _mq.addEventListener('change', e => {{
+    if (e.matches) {{
+      document.documentElement.style.removeProperty('--left-w');
+    }} else {{
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) document.documentElement.style.setProperty('--left-w', saved + 'px');
+    }}
+  }});
   let startX, startW;
   resizer.addEventListener('mousedown', e => {{
     startX = e.clientX;
