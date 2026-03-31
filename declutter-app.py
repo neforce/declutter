@@ -989,7 +989,7 @@ def start_server():
   .lb-foto-wrap img{{width:100%;height:calc(100% - 56px);object-fit:contain;border-radius:6px;border:3px solid transparent;cursor:pointer}}
   .lb-foto-wrap img.met-hart{{border-color:#e33}}
   .lb-foto-info{{font-size:.7rem;color:#aaa;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.3rem}}
-  .lb-hart{{background:none;border:2px solid #555;border-radius:50%;width:34px;height:34px;font-size:1rem;cursor:pointer;color:#aaa;flex-shrink:0}}
+  .lb-hart{{background:none;border:2px solid #555;border-radius:50%;width:34px;height:34px;font-size:1rem;cursor:pointer;color:#aaa;flex-shrink:0;display:flex;align-items:center;justify-content:center;line-height:1}}
   .lb-hart.actief{{border-color:#e33;color:#e33}}
   #lb-nav{{display:flex;align-items:center;justify-content:center;gap:1rem}}
   .lb-pijl{{background:#333;border:none;color:#eee;font-size:1.3rem;width:40px;height:40px;border-radius:50%;cursor:pointer}}
@@ -1062,6 +1062,11 @@ def start_server():
   /* ── Info-help knop ── */
   #info-help-btn{{position:fixed;right:1rem;bottom:1rem;width:32px;height:32px;border-radius:50%;background:#2a2a2a;color:#888;border:1px solid #444;font-size:1rem;font-weight:bold;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;line-height:1}}
   #info-help-btn:hover{{background:#383838;color:#ccc}}
+  /* ── Extra tools dropdown (mobiel) ── */
+  #extra-tools-wrap{{position:relative;display:flex;align-items:center}}
+  #extra-tools-btn{{display:none;background:#383838;border:1px solid #555;color:#ccc;padding:.18rem .55rem;font-size:1rem;cursor:pointer;border-radius:4px;line-height:1;letter-spacing:.1em}}
+  #extra-tools-btn:hover{{background:#444}}
+  #extra-tools-dropdown{{display:flex;gap:.35rem;align-items:center}}
   /* ── Mobiel verplaats-picker ── */
   #mobiel-verplaats-bar{{display:none}}
   .mv-item{{padding:.55rem .7rem;border-bottom:1px solid #2a2a2a;cursor:pointer;font-size:.82rem;color:#ccc}}
@@ -1075,8 +1080,14 @@ def start_server():
     #cols-wrap{{flex-direction:column;overflow:visible;height:auto}}
     #fotos-wrap{{width:100%;overflow:visible;min-width:0}}
     #sidebar{{width:100%;border-left:none;border-top:1px solid #2a2a2a}}
-    #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:sticky;bottom:0;z-index:50;width:100%}}
+    #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:fixed;bottom:0;left:0;right:0;z-index:50;box-sizing:border-box}}
     #mobiel-verplaats-bar.verborgen{{display:none!important}}
+    body{{padding-bottom:56px}}
+    #info-help-btn{{display:none}}
+    #extra-tools-btn{{display:flex;align-items:center;justify-content:center}}
+    #extra-tools-dropdown{{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#1a1a1a;border:1px solid #444;border-radius:6px;padding:.45rem;flex-direction:column;gap:.3rem;min-width:160px;z-index:100;box-shadow:0 4px 14px rgba(0,0,0,.6)}}
+    #extra-tools-dropdown.open{{display:flex}}
+    #extra-tools-dropdown button{{text-align:left;width:100%;padding:.35rem .65rem;font-size:.78rem;border-radius:4px}}
   }}
 </style>
 </head>
@@ -1130,10 +1141,16 @@ def start_server():
       <button type="button" class="btn-later" onclick="bewaarLater()" data-i18n-title="btn_later_title" title="Zet selectie in 'Later uitzoeken'">⏳ <span data-i18n="btn_later">Later</span></button>
       <button type="button" id="btn-verwijder" class="btn-verwijder" onclick="verwijderSelectie()" data-i18n-title="btn_verwijder_title" title="Verplaats selectie naar prullenbak" disabled>🗑 <span data-i18n="btn_verwijder">Verwijder</span></button>
       <button type="button" class="btn-alles" onclick="allesToggle()" data-i18n-title="btn_alles_title" title="Alles (de)selecteren">☑ <span data-i18n="btn_alles">Alles</span></button>
-      <button type="button" class="btn-presort" onclick="presortRun()" data-i18n-title="btn_presort_title" title="Foto's uit ruwe_data indelen op datum">⚙ <span data-i18n="btn_presort">Presort</span></button>
-      <button type="button" class="btn-opruim" onclick="opruimLege()" data-i18n-title="btn_opruim_title" title="Verwijder lege mappen uit 'In behandeling'">🧹 <span data-i18n="btn_opruim">Opruimen</span></button>
-      <button type="button" class="btn-cache" onclick="clearThumbs()" data-i18n-title="btn_cache_title" title="Thumbnail-cache leegmaken">🗑 <span data-i18n="btn_cache">Cache</span></button>
-      <button type="button" class="btn-reset" onclick="resetTest()" data-i18n-title="btn_reset_title" title="Testdata opnieuw aanmaken">↺ <span data-i18n="btn_reset">Reset</span></button>
+      <div id="extra-tools-wrap">
+        <button type="button" id="extra-tools-btn" onclick="toggleExtraTools()" title="Meer opties">&#8943;</button>
+        <div id="extra-tools-dropdown">
+          <button type="button" class="btn-presort" onclick="sluitExtraTools();presortRun()" data-i18n-title="btn_presort_title" title="Foto's uit ruwe_data indelen op datum">⚙ <span data-i18n="btn_presort">Presort</span></button>
+          <button type="button" class="btn-opruim" onclick="sluitExtraTools();opruimLege()" data-i18n-title="btn_opruim_title" title="Verwijder lege mappen uit 'In behandeling'">🧹 <span data-i18n="btn_opruim">Opruimen</span></button>
+          <button type="button" class="btn-cache" onclick="sluitExtraTools();clearThumbs()" data-i18n-title="btn_cache_title" title="Thumbnail-cache leegmaken">🗑 <span data-i18n="btn_cache">Cache</span></button>
+          <button type="button" class="btn-reset" onclick="sluitExtraTools();resetTest()" data-i18n-title="btn_reset_title" title="Testdata opnieuw aanmaken">↺ <span data-i18n="btn_reset">Reset</span></button>
+          <button type="button" style="background:#2a2a2a;border:1px solid #444;color:#888" onclick="sluitExtraTools();toonInfoHelp()" title="Uitleg over de interface">? Info</button>
+        </div>
+      </div>
     </div>
     <div id="fotos"><p style="color:#555;padding:1rem" data-i18n="status_init">Kies een map in de boom links.</p></div>
     <div id="status" data-i18n="status_init">Kies een map in de boom links.</div>
@@ -1324,6 +1341,7 @@ def start_server():
     <div id="lb-header">
       <span id="lb-teller"></span>
       <span style="font-size:.75rem;color:#666">H = hartje &nbsp;·&nbsp; ← → = bladeren &nbsp;·&nbsp; Esc = sluiten</span>
+      <button type="button" onclick="sluitLightbox()" style="background:none;border:none;color:#888;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 .2rem;margin-left:.5rem" title="Sluiten">&#215;</button>
     </div>
     <div id="lb-fotos"></div>
     <div id="lb-nav">
@@ -1397,10 +1415,7 @@ function _renderMaandBoom(jm, laterUitzoeken) {{
       const maandPad = ('{INBOX_DIR}/' + maand).replace(/\\\\/g,'/');
       const cntHtml = aantal ? ` <span class="boom-count">(${{aantal}})</span>` : '';
       html += `<div class="maand-rij" id="mr-${{maand}}" data-maand="${{maand}}"
-        onclick="laadMaand('${{maand}}',this)"
-        ondragover="_boomDragOver(event,this)"
-        ondragleave="_boomDragLeave(this)"
-        ondrop="_boomDrop(event,'${{maandPad}}')">
+        onclick="laadMaand('${{maand}}',this)">
         <span>${{lbl}}${{cntHtml}}</span>
       </div>`;
     }}
@@ -1693,23 +1708,23 @@ function _flattenBoom(boom, prefix, result) {{
   }});
 }}
 
+function toggleExtraTools() {{
+  document.getElementById('extra-tools-dropdown').classList.toggle('open');
+}}
+function sluitExtraTools() {{
+  document.getElementById('extra-tools-dropdown').classList.remove('open');
+}}
+document.addEventListener('click', e => {{
+  if (!e.target.closest('#extra-tools-wrap')) sluitExtraTools();
+}});
+
 function toonMobielVerplaats() {{
   if (!selectie.size) return;
   const n = selectie.size;
   document.getElementById('mv-titel').textContent =
     n + ' foto\u2019' + (n !== 1 ? 's' : '') + ' verplaatsen naar\u2026';
-  const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
   const lijst = [];
   if (_treeData) {{
-    const jm = _treeData.jm || {{}};
-    for (const jaar of Object.keys(jm).sort().reverse()) {{
-      for (const mo of jm[jaar]) {{
-        const maand = typeof mo === 'string' ? mo : mo.naam;
-        const mn = parseInt(maand.slice(5)) - 1;
-        const maandPad = (_uitzoeken ? _uitzoeken + '/' : '') + maand;
-        lijst.push({{label: '\U0001F4C5 ' + jaar + ' \u2013 ' + (MAANDEN[mn] || maand.slice(5)), pad: maandPad}});
-      }}
-    }}
     const arch = [];
     _flattenBoom(_treeData.archief_boom || [], '', arch);
     arch.forEach(i => lijst.push({{label: '\U0001F4C1 ' + i.label, pad: i.pad}}));
