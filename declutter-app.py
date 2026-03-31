@@ -1087,9 +1087,11 @@ def start_server():
     #sidebar{{width:100%;border-left:none;border-top:1px solid #2a2a2a}}
     #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:fixed;bottom:0;left:0;right:0;z-index:50;box-sizing:border-box}}
     #mobiel-verplaats-bar.verborgen{{display:none!important}}
-    body{{padding-bottom:56px}}
-    .toolbar{{position:static!important}}
-    #thumb-toolbar{{position:sticky!important;top:0;z-index:20}}
+    body{{padding-bottom:56px;padding-top:0}}
+    .toolbar{{position:fixed!important;top:0;left:0;right:0;z-index:30;transition:transform .18s ease}}
+    .toolbar.mob-verborgen{{transform:translateY(-100%)}}
+    #thumb-toolbar{{position:fixed!important;top:var(--mob-tb-top,46px);left:0;right:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:top .18s ease}}
+    #main-wrap{{padding-top:calc(var(--mob-tb-top,46px) + 38px)}}
     #btn-verwijder{{white-space:nowrap}}
     #info-help-btn{{display:none}}
     #slider-wrap{{display:none!important}}
@@ -2790,6 +2792,58 @@ async function setLang(code) {{
 (async function() {{
   await _loadLang(_lang);
   applyTranslations();
+}})();
+
+// ── Mobiel: toolbar verbergen bij scrollen ────────────────────────────────────
+(function() {{
+  const mq = window.matchMedia('(max-width:700px)');
+  let lastY = 0, ticking = false;
+
+  function setToolbarH(bar) {{
+    const h = bar ? bar.offsetHeight : 46;
+    document.documentElement.style.setProperty('--mob-tb-top', h + 'px');
+  }}
+
+  function onScroll() {{
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function() {{
+      if (mq.matches) {{
+        const y = window.scrollY;
+        const bar = document.querySelector('.toolbar');
+        if (bar) {{
+          if (y > lastY + 4 && y > 60) {{
+            bar.classList.add('mob-verborgen');
+            document.documentElement.style.setProperty('--mob-tb-top', '0px');
+          }} else if (y < lastY - 2) {{
+            bar.classList.remove('mob-verborgen');
+            setToolbarH(bar);
+          }}
+        }}
+        lastY = y;
+      }}
+      ticking = false;
+    }});
+  }}
+
+  window.addEventListener('scroll', onScroll, {{passive: true}});
+
+  function init() {{
+    if (mq.matches) setToolbarH(document.querySelector('.toolbar'));
+  }}
+  if (document.readyState === 'loading') {{
+    document.addEventListener('DOMContentLoaded', init);
+  }} else {{
+    init();
+  }}
+  mq.addEventListener('change', function(e) {{
+    if (!e.matches) {{
+      document.querySelector('.toolbar')?.classList.remove('mob-verborgen');
+      document.documentElement.style.removeProperty('--mob-tb-top');
+    }} else {{
+      setToolbarH(document.querySelector('.toolbar'));
+    }}
+  }});
 }})();
 
 // ── Systeemstatus (health check) ──────────────────────────────────────────────
