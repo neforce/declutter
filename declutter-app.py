@@ -1066,6 +1066,7 @@ def start_server():
   #tree-toggle-btn{{display:none}}
   /* ── Slider wrapper (voor mobiel hide) ── */
   #slider-in-dd{{display:none}}
+  #slider-wrap{{display:contents}}
   /* ── Extra tools dropdown (mobiel) ── */
   #extra-tools-wrap{{position:relative;display:flex;align-items:center}}
   #extra-tools-btn{{display:none;background:#383838;border:1px solid #555;color:#ccc;padding:.18rem .55rem;font-size:1rem;cursor:pointer;border-radius:4px;line-height:1;letter-spacing:.1em}}
@@ -1087,10 +1088,11 @@ def start_server():
     #mobiel-verplaats-bar{{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .8rem;background:#1a2a1a;border-top:2px solid #2a5a2a;position:fixed;bottom:0;left:0;right:0;z-index:50;box-sizing:border-box}}
     #mobiel-verplaats-bar.verborgen{{display:none!important}}
     body{{padding-bottom:56px}}
-    .toolbar{{position:static}}
-    #thumb-toolbar{{position:sticky;top:0;z-index:10}}
+    .toolbar{{position:static!important}}
+    #thumb-toolbar{{position:sticky!important;top:0;z-index:20}}
+    #btn-verwijder{{white-space:nowrap}}
     #info-help-btn{{display:none}}
-    #slider-wrap{{display:none}}
+    #slider-wrap{{display:none!important}}
     #tree-toggle-btn{{display:flex;align-items:center;justify-content:center;background:#2a2a2a;border:1px solid #444;color:#ccc;padding:.18rem .55rem;font-size:.95rem;cursor:pointer;border-radius:4px;line-height:1}}
     #tree-toggle-btn:hover{{background:#383838}}
     #extra-tools-btn{{display:flex;align-items:center;justify-content:center}}
@@ -1146,7 +1148,7 @@ def start_server():
   <div id="fotos-wrap">
     <div id="thumb-toolbar">
       <button type="button" id="tree-toggle-btn" onclick="toggleTreePanel()" title="Boom tonen/verbergen">&#9776;</button>
-      <div id="slider-wrap" style="display:contents">
+      <div id="slider-wrap">
         <span data-i18n="lbl_grootte">Grootte:</span>
         <input type="range" id="breedte-slider" min="100" max="400" value="220"
                oninput="sliderVerander(this.value)">
@@ -2774,6 +2776,8 @@ function applyTranslations() {{
   if (_ihb && document.getElementById('info-help-modal').style.display !== 'none') {{
     _ihb.innerHTML = _bouwInfoHelp();
   }}
+  updateMobielBar();
+  updateSidebar();
 }}
 
 async function setLang(code) {{
