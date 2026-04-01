@@ -246,6 +246,7 @@ def run_health_checks():
     checks.append(_dir_check("dump",        "health_check_dump",      BASE_DIR / RAW_DIR,      optional=True))
     checks.append(_dir_check("uitzoeken",   "health_check_uitzoeken", BASE_DIR / INBOX_DIR, need_write=True))
     checks.append(_dir_check("archief",     "health_check_archief",   BASE_DIR / ARCHIVE_DIR,   need_write=True))
+    checks.append(_dir_check("datumloos",  "health_check_datumloos", BASE_DIR / DATELESS_DIR,  need_write=True))
     checks.append(_dir_check("prullenbak",  "health_check_prullenbak",BASE_DIR / TRASH_DIR,need_write=True))
     checks.append(_dir_check("data_dir",    "health_check_data_dir",  DATA_DIR,                 need_write=True))
 

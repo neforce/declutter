@@ -127,6 +127,7 @@
   "health_check_dump": "Ruwe data (DUMP_DIR)",
   "health_check_uitzoeken": "In behandeling (UITZOEKEN_DIR)",
   "health_check_archief": "Verwerkt (ARCHIEF_DIR)",
+  "health_check_datumloos": "Zonder datum (DATELESS_DIR)",
   "health_check_prullenbak": "Prullenbak (PRULLENBAK_DIR)",
   "health_check_data_dir": "Cacheruimte (DATA_DIR)",
   "health_check_pillow": "Pillow (beeldverwerking)",

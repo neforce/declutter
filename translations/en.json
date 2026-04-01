@@ -127,6 +127,7 @@
   "health_check_dump": "Raw data (DUMP_DIR)",
   "health_check_uitzoeken": "To sort (UITZOEKEN_DIR)",
   "health_check_archief": "Archived (ARCHIEF_DIR)",
+  "health_check_datumloos": "No date (DATELESS_DIR)",
   "health_check_prullenbak": "Trash (PRULLENBAK_DIR)",
   "health_check_data_dir": "Cache storage (DATA_DIR)",
   "health_check_pillow": "Pillow (image processing)",
