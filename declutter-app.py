@@ -916,8 +916,13 @@ def start_server():
   /* ── 3-koloms layout ── */
   html,body{{height:100%;overflow:hidden}}
   body{{display:flex;flex-direction:column}}
-  #progress-wrap{{height:4px;flex-shrink:0}}
+  #progress-wrap{{height:4px;flex-shrink:0;overflow:hidden}}
   #progress{{height:4px;background:#4a8abf;transition:width .1s;width:0%}}
+  @keyframes laden-sweep{{0%{{transform:translateX(-100%)}}100%{{transform:translateX(400%)}}}}
+  #progress-wrap.laden #progress{{width:25%;animation:laden-sweep 1.1s ease-in-out infinite;transition:none}}
+  .fotos-laden{{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1rem;gap:.8rem;color:#555}}
+  .fotos-laden-spinner{{width:28px;height:28px;border:3px solid #333;border-top-color:#4a8abf;border-radius:50%;animation:laden-sweep-spin .8s linear infinite}}
+  @keyframes laden-sweep-spin{{to{{transform:rotate(360deg)}}}}
   #main-wrap{{flex:1;display:flex;min-height:0;overflow:hidden;flex-direction:column}}
   #cols-wrap{{flex:1;display:flex;min-height:0;overflow:hidden}}
   /* ── Linkerpaneel (treeview) ── */
@@ -1080,7 +1085,7 @@ def start_server():
     html,body{{height:auto;overflow:auto}}
     :root{{--foto-breedte:130px;--left-w:100%;--right-w:100%}}
     #main-wrap{{flex-direction:column;overflow:visible}}
-    #left-panel{{position:fixed!important;top:calc(var(--mob-tb-top,46px) + 38px);left:0;right:0;max-height:0;overflow:hidden;z-index:15;border-right:none;border-bottom:none;transition:max-height .2s ease}}
+    #left-panel{{position:fixed!important;top:calc(var(--mob-tb-top,46px) + 35px);left:0;right:0;max-height:0;overflow:hidden;z-index:15;border-right:none;border-bottom:none;transition:max-height .2s ease}}
     #left-panel.mob-open{{max-height:65vh;overflow-y:auto;border-bottom:1px solid #333;box-shadow:0 4px 14px rgba(0,0,0,.6)}}
     #left-resizer{{display:none}}
     #cols-wrap{{flex-direction:column;overflow:visible;height:auto}}
@@ -1092,7 +1097,7 @@ def start_server():
     .toolbar{{position:fixed!important;top:0;left:0;right:0;z-index:30;transition:transform .18s ease}}
     .toolbar.mob-verborgen{{transform:translateY(-100%)}}
     #thumb-toolbar{{position:fixed!important;top:var(--mob-tb-top,46px);left:0;right:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:top .18s ease}}
-    #main-wrap{{padding-top:calc(var(--mob-tb-top,46px) + 38px)}}
+    #main-wrap{{padding-top:calc(var(--mob-tb-top,46px) + 35px)}}
     #btn-verwijder{{white-space:nowrap}}
     #info-help-btn{{display:none}}
     #slider-wrap{{display:none!important}}
@@ -1844,15 +1849,30 @@ async function bladernInMap(pad) {{
   document.getElementById('fotos-wrap').classList.toggle('prullenbak-modus', !!inPb);
   document.getElementById('status').textContent = t('status_huidig_map') + pad;
   updateSidebar();
+  _toonLaden();
   let data;
   try {{
     const resp = await fetch('/fotos?pad=' + encodeURIComponent(pad));
     data = await resp.json();
   }} catch(e) {{
+    _verbergLaden();
     document.getElementById('fotos').innerHTML = `<p style="color:#c66">Fout: ${{e.message}}</p>`;
     return;
   }}
+  _verbergLaden();
   renderFotos(data.groepen || []);
+}}
+
+function _toonLaden() {{
+  document.getElementById('fotos').innerHTML =
+    '<div class="fotos-laden"><div class="fotos-laden-spinner"></div><span style="font-size:.8rem">' + t('status_laden') + '</span></div>';
+  const wrap = document.getElementById('progress-wrap');
+  wrap.style.display = 'block';
+  wrap.classList.add('laden');
+}}
+function _verbergLaden() {{
+  const wrap = document.getElementById('progress-wrap');
+  wrap.classList.remove('laden');
 }}
 
 function _herlaadHuidig() {{
@@ -2124,16 +2144,18 @@ async function laadMaand(maand, knop) {{
     const tsb = document.getElementById('tsb-behandeling');
     if (tsb && !tsb.classList.contains('open')) toggleTS('behandeling');
   }}
-  // Haal alleen metadata op — snel
+  _toonLaden();
   let data;
   try {{
     const resp = await fetch('/fotos?maand=' + maand);
     if (!resp.ok) throw new Error(`Server fout: ${{resp.status}}`);
     data = await resp.json();
   }} catch(e) {{
+    _verbergLaden();
     document.getElementById('fotos').innerHTML = `<p style="color:#c66">${{t('status_fout_laden')}}${{e.message}}</p>`;
     return;
   }}
+  _verbergLaden();
   renderFotos(data.groepen || []);
 }}
 
