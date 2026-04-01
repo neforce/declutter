@@ -7,6 +7,16 @@
 
 ---
 
+<img width="1440" height="791" alt="Declutter desktop" src="https://github.com/user-attachments/assets/608b12f5-1584-4f79-8004-ccabb6ee2940" />
+
+<img width="526" height="348" alt="Declutter folder tree" src="https://github.com/user-attachments/assets/6626418c-ed5f-45cb-9cd3-f799e8e9dda6" />
+
+<img width="570" height="743" alt="Declutter mobile" src="https://github.com/user-attachments/assets/144392eb-ece9-4644-9d84-daff22e2ec18" />
+
+<img width="558" height="590" alt="Declutter lightbox" src="https://github.com/user-attachments/assets/1722ce71-3866-4cf0-9179-e5480f0af70f" />
+
+---
+
 ## Features
 
 - 📁 Browse your photo collection by month or folder
@@ -83,6 +93,7 @@ docker compose pull && docker compose up -d
 | `IMMICH_URL` | — | Immich instance URL (optional) |
 | `IMMICH_API_KEY` | — | Immich API key (optional) |
 | `DEBUG` | `false` | Enable debug logging |
+| `PRESORT_DEBUG` | `false` | Log detailed presort output per file |
 
 > **Upgrading from an older version?** The Dutch variable names `ARCHIEF_DIR`, `UITZOEKEN_DIR`, `DUMP_DIR`, `PRULLENBAK_DIR` and `DATUMLOOS_DIR` still work but are deprecated. Declutter will print a warning on startup. Please rename them to the English equivalents listed above at your earliest convenience.
 
